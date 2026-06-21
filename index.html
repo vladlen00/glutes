@@ -61,6 +61,9 @@ html,body{width:100%;min-height:100%;background:var(--bg);color:var(--text);
 /* Тонкая контурная круглая кнопка play, иконка оранжевая через currentColor */
 .row-play{flex-shrink:0;width:34px;height:34px;border-radius:50%;border:1px solid var(--accent);
   background:none;color:var(--accent);display:flex;align-items:center;justify-content:center;padding-left:2px;}
+.row.locked{opacity:0.55;}
+.row-soon{margin-top:5px;font-family:'Manrope',sans-serif;font-weight:600;font-size:0.7rem;
+  letter-spacing:0.02em;color:var(--muted);}
 /* Мягкая строка-завершение под коротким списком, чтобы вкладка не смотрелась куце */
 .list-soon{padding:24px 4px 6px;text-align:center;font-family:'Manrope',sans-serif;font-weight:500;
   font-size:0.78rem;letter-spacing:0.03em;color:var(--muted);}
@@ -185,11 +188,13 @@ async function irenaCheckAccess() {
 
 // Play - только инлайновый SVG (как в фиксе workout), цвет наследует currentColor (оранжевый)
 const PLAY_SVG = '<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+// Замок - простой контурный SVG, цвет наследует currentColor
+const LOCK_SVG = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
 
 // Kinescope: храним ID, embed строим как в workout -> https://kinescope.io/embed/{ID}
 const WORKOUTS = [
   { num: '01', title: 'Зарядка',      duration: '10:00', id: '7DM9pw29wHp54hEuvZL3r1' },
-  { num: '02', title: 'Тренировка 1', duration: '8:34',  id: '9sYhAUqKknTDcExefp9wGK' },
+  { num: '02', title: 'Тренировка 1', duration: '8:34',  id: '9sYhAUqKknTDcExefp9wGK', locked: true },
 ];
 const TECHNIQUES = [
   { num: '01', title: 'Базовые правила',  duration: '9:27', id: 'xpQ2hHSjvAGebW39gs3Thy' },
@@ -210,15 +215,15 @@ function switchTab(tab) {
 function renderList(elId, items) {
   const el = document.getElementById(elId);
   el.innerHTML = items.map(v => `
-    <div class="row">
+    <div class="row${v.locked ? ' locked' : ''}">
       <div class="row-num">${v.num}</div>
       <div class="row-info">
         <div class="row-name">${v.title}</div>
-        <div class="row-dur">${v.duration}</div>
+        ${v.locked ? '<div class="row-soon">скоро</div>' : `<div class="row-dur">${v.duration}</div>`}
       </div>
-      <div class="row-play">${PLAY_SVG}</div>
+      <div class="row-play">${v.locked ? LOCK_SVG : PLAY_SVG}</div>
     </div>`).join('');
-  el.querySelectorAll('.row').forEach((row, i) => { row.onclick = () => openVideo(items[i]); });
+  el.querySelectorAll('.row').forEach((row, i) => { row.onclick = () => { if (items[i].locked) return; openVideo(items[i]); }; });
 }
 
 function openVideo(item) {
