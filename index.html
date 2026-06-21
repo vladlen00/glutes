@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Биохакинг ягодиц · irena.bio</title>
+<script src="telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#100f0e; --cover:#1a1816; --accent:#df6a2c;
+  --text:#f2efe8; --muted:#837e74; --hair:rgba(242,239,232,0.07);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100%;min-height:100%;background:var(--bg);color:var(--text);
+  font-family:'Manrope',sans-serif;overflow-x:hidden;-webkit-tap-highlight-color:transparent;}
+.app{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;}
+
+/* Шапка-обложка */
+.cover{position:relative;background:var(--cover);padding:44px 24px 28px;overflow:hidden;}
+/* Слот под фоновую иллюстрацию (ягодицы лягут позже). Когда будет картинка -
+   задать на #coverBg:
+     background-image: linear-gradient(180deg,rgba(16,15,14,.15),rgba(26,24,22,.85)), url('cover.jpg');
+     opacity: 1;
+   градиент сверху держит текст читаемым. Сейчас слот пуст -> сплошной #1a1816. */
+.cover-bg{position:absolute;inset:0;opacity:0;background-position:center;background-size:cover;background-repeat:no-repeat;}
+.cover-inner{position:relative;z-index:1;}
+.cover-title{font-family:'Archivo',sans-serif;font-weight:800;font-size:2rem;line-height:1.05;
+  text-transform:uppercase;color:var(--text);}
+.cover-sub{font-family:'Manrope',sans-serif;font-weight:500;font-size:0.82rem;color:var(--muted);margin-top:11px;}
+
+/* Вкладки-подчёркивания (не пилюли) */
+.tabs{display:flex;gap:28px;padding:18px 24px 0;border-bottom:1px solid var(--hair);}
+.tab{position:relative;background:none;border:none;cursor:pointer;padding:0 0 12px;
+  font-family:'Archivo',sans-serif;font-weight:800;font-size:0.72rem;letter-spacing:2px;
+  text-transform:uppercase;color:var(--muted);}
+.tab.active{color:var(--text);}
+.tab.active::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--accent);}
+
+/* Загрузка (короткий момент tg-auth) */
+.loading{display:none;align-items:center;justify-content:center;flex:1;padding:48px;}
+.loading.active{display:flex;}
+.loading-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 1.2s infinite;}
+@keyframes pulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
+
+/* Список нумерованный, без коробок, волосяные линии между пунктами */
+.list-screen{display:none;flex-direction:column;flex:1;padding:4px 24px 40px;}
+.list-screen.active{display:flex;}
+.panel{display:none;}
+.panel.active{display:block;}
+.row{display:flex;align-items:center;gap:16px;padding:18px 0;border-bottom:1px solid var(--hair);
+  cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.row:active{opacity:.55;}
+.row-num{flex-shrink:0;width:26px;font-family:'Archivo',sans-serif;font-weight:800;font-size:1.05rem;color:var(--accent);}
+.row-info{flex:1;min-width:0;}
+.row-name{font-family:'Manrope',sans-serif;font-weight:600;font-size:0.98rem;color:var(--text);}
+.row-dur{margin-top:5px;font-family:'Archivo',sans-serif;font-weight:800;font-size:0.6rem;
+  letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);}
+/* Тонкая контурная круглая кнопка play, иконка оранжевая через currentColor */
+.row-play{flex-shrink:0;width:34px;height:34px;border-radius:50%;border:1px solid var(--accent);
+  background:none;color:var(--accent);display:flex;align-items:center;justify-content:center;padding-left:2px;}
+/* Мягкая строка-завершение под коротким списком, чтобы вкладка не смотрелась куце */
+.list-soon{padding:24px 4px 6px;text-align:center;font-family:'Manrope',sans-serif;font-weight:500;
+  font-size:0.78rem;letter-spacing:0.03em;color:var(--muted);}
+
+/* Плеер */
+.player-screen{display:none;flex-direction:column;flex:1;}
+.player-screen.active{display:flex;}
+.player-back{display:inline-flex;align-items:center;gap:9px;align-self:flex-start;
+  margin:14px 24px 8px;padding:0;background:none;border:none;cursor:pointer;color:var(--text);
+  font-family:'Manrope',sans-serif;font-weight:600;font-size:0.9rem;-webkit-tap-highlight-color:transparent;}
+.player-back::before{content:'';width:8px;height:8px;border-left:2px solid var(--accent);
+  border-bottom:2px solid var(--accent);transform:rotate(45deg);flex-shrink:0;}
+.player-wrap{position:relative;width:100%;aspect-ratio:9/16;margin:0 auto;background:#000;flex-shrink:0;}
+.player-wrap iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:none;}
+.player-info{padding:18px 24px 32px;}
+.player-title{font-family:'Archivo',sans-serif;font-weight:800;font-size:1.15rem;
+  text-transform:uppercase;color:var(--text);}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="cover">
+    <div class="cover-bg" id="coverBg"></div>
+    <div class="cover-inner">
+      <h1 class="cover-title">Биохакинг ягодиц</h1>
+      <div class="cover-sub">с Иреной Пол</div>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" type="button" onclick="switchTab('workouts')">Тренировки</button>
+    <button class="tab" type="button" onclick="switchTab('techniques')">Техника</button>
+  </nav>
+
+  <div class="loading active" id="loadingScreen"><div class="loading-dot"></div></div>
+
+  <div class="list-screen" id="listScreen">
+    <div class="panel active" id="panel-workouts">
+      <div id="workoutList"></div>
+      <div class="list-soon">Скоро новые тренировки</div>
+    </div>
+    <div class="panel" id="panel-techniques"><div id="techniqueList"></div></div>
+  </div>
+
+  <div class="player-screen" id="playerScreen">
+    <button class="player-back" type="button" onclick="closeVideo()">Назад</button>
+    <div class="player-wrap">
+      <iframe id="videoFrame" src="" allow="autoplay; fullscreen; picture-in-picture; encrypted-media; gyroscope; accelerometer; clipboard-write; screen-wake-lock;" allowfullscreen></iframe>
+    </div>
+    <div class="player-info"><div class="player-title" id="playerTitle"></div></div>
+  </div>
+</div>
+
+<script>
+// ====== Telegram Mini App access control (унаследовано из workout, тот же клуб/гейт) ======
+const IRENA_VERIFY_URL = "https://kjzxrpwqyyjcykwbqskn.supabase.co/functions/v1/verify-access";
+const IRENA_TOKEN_KEY = "irena_access_token";
+const IRENA_TOKEN_EXPIRES_KEY = "irena_access_token_expires_at";
+const IRENA_SUBSCRIBE_URL = "https://t.me/Biochakirena_bot";
+
+function irenaGetStoredToken() {
+  try {
+    const token = localStorage.getItem(IRENA_TOKEN_KEY);
+    const expiresAt = parseInt(localStorage.getItem(IRENA_TOKEN_EXPIRES_KEY) || "0", 10);
+    if (!token || !expiresAt) return null;
+    if (Date.now() >= expiresAt - 60000) return null;
+    return token;
+  } catch { return null; }
+}
+function irenaStoreToken(token, ttl) {
+  try {
+    localStorage.setItem(IRENA_TOKEN_KEY, token);
+    localStorage.setItem(IRENA_TOKEN_EXPIRES_KEY, String(Date.now() + ttl * 1000));
+  } catch {}
+}
+function irenaGetInitData() {
+  try {
+    if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) {
+      return window.Telegram.WebApp.initData;
+    }
+  } catch {}
+  return null;
+}
+function irenaShowBlocked(reason) {
+  document.body.innerHTML = '';
+  const overlay = document.createElement("div");
+  overlay.style.cssText = "position:fixed;inset:0;z-index:999999;background:#100f0e;color:#f2efe8;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;font-family:'Manrope',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;text-align:center;";
+  overlay.innerHTML = `
+    <div style="font-size:60px;margin-bottom:22px;">🔒</div>
+    <div style="font-size:22px;font-weight:700;margin-bottom:12px;">Доступ закрыт</div>
+    <div style="font-size:15px;line-height:1.6;color:rgba(242,239,232,0.6);margin-bottom:30px;max-width:340px;">Курс «Биохакинг ягодиц» доступен участницам клуба Ирены Пол. Для доступа перейди в бот и оформи подписку.</div>
+    <a href="${IRENA_SUBSCRIBE_URL}" target="_blank" rel="noopener" style="display:inline-block;padding:14px 32px;background:#df6a2c;color:#fff;border-radius:14px;font-size:15px;font-weight:600;text-decoration:none;">Оформить подписку</a>
+    ${reason ? `<div style="position:absolute;bottom:12px;left:0;right:0;font-size:10px;color:rgba(242,239,232,0.14);text-align:center;">${reason}</div>` : ''}
+  `;
+  document.body.appendChild(overlay);
+}
+async function irenaCheckAccess() {
+  const cached = irenaGetStoredToken();
+  if (cached) return true;
+  const initData = irenaGetInitData();
+  if (!initData) { irenaShowBlocked("no_telegram_context"); return false; }
+  try {
+    const res = await fetch(IRENA_VERIFY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ initData }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.ok && data.token) {
+      irenaStoreToken(data.token, data.expiresIn || 86400);
+      return true;
+    }
+    const reason = res.status === 403 ? "not_a_member" : res.status === 401 ? "invalid_init_data" : `error_${res.status}`;
+    irenaShowBlocked(reason);
+    return false;
+  } catch {
+    irenaShowBlocked("network_error");
+    return false;
+  }
+}
+// ====== End access control ======
+
+// Play - только инлайновый SVG (как в фиксе workout), цвет наследует currentColor (оранжевый)
+const PLAY_SVG = '<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+
+// Kinescope: храним ID, embed строим как в workout -> https://kinescope.io/embed/{ID}
+const WORKOUTS = [
+  { num: '01', title: 'Зарядка',      duration: '10:00', id: '7DM9pw29wHp54hEuvZL3r1' },
+  { num: '02', title: 'Тренировка 1', duration: '8:34',  id: '9sYhAUqKknTDcExefp9wGK' },
+];
+const TECHNIQUES = [
+  { num: '01', title: 'Базовые правила',  duration: '9:27', id: 'xpQ2hHSjvAGebW39gs3Thy' },
+  { num: '02', title: 'Присед техника 1', duration: '1:28', id: '6S72CeK7uFUuEBSdnjy6mB' },
+  { num: '03', title: 'Присед техника 2', duration: '6:09', id: 'eRKfF4bszjh2wVfN8tmpXT' },
+  { num: '04', title: 'Румынская тяга',   duration: '5:50', id: 'fjqaA8Z3qZdqV6z2yTw5nK' },
+  { num: '05', title: 'Мостик',           duration: '5:37', id: 'rWhJM9aWwVHXBNhf9y3wd8' },
+];
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((b, i) => {
+    b.classList.toggle('active', ['workouts','techniques'][i] === tab);
+  });
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+}
+
+function renderList(elId, items) {
+  const el = document.getElementById(elId);
+  el.innerHTML = items.map(v => `
+    <div class="row">
+      <div class="row-num">${v.num}</div>
+      <div class="row-info">
+        <div class="row-name">${v.title}</div>
+        <div class="row-dur">${v.duration}</div>
+      </div>
+      <div class="row-play">${PLAY_SVG}</div>
+    </div>`).join('');
+  el.querySelectorAll('.row').forEach((row, i) => { row.onclick = () => openVideo(items[i]); });
+}
+
+function openVideo(item) {
+  document.getElementById('videoFrame').src = 'https://kinescope.io/embed/' + item.id;
+  document.getElementById('playerTitle').textContent = item.title;
+  document.getElementById('listScreen').classList.remove('active');
+  document.getElementById('playerScreen').classList.add('active');
+  window.scrollTo(0, 0);
+  const tgBack = window.Telegram?.WebApp?.BackButton;
+  if (tgBack) { tgBack.onClick(closeVideo); tgBack.show(); }
+}
+
+function closeVideo() {
+  document.getElementById('videoFrame').src = '';
+  const tgBack = window.Telegram?.WebApp?.BackButton;
+  if (tgBack) { tgBack.offClick(closeVideo); tgBack.hide(); }
+  document.getElementById('playerScreen').classList.remove('active');
+  document.getElementById('listScreen').classList.add('active');
+}
+
+function init() {
+  renderList('workoutList', WORKOUTS);
+  renderList('techniqueList', TECHNIQUES);
+  document.getElementById('loadingScreen').classList.remove('active');
+  document.getElementById('listScreen').classList.add('active');
+}
+
+irenaCheckAccess().then(ok => { if (ok) init(); });
+</script>
+</body>
+</html>
