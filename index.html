@@ -233,7 +233,7 @@ async function irenaCheckAccess() {
 }
 // ====== End access control ======
 
-// ====== Supabase (только ЧТЕНИЕ расписания, anon-ключ — тот же проект, role:anon) ======
+// ====== Supabase (только ЧТЕНИЕ расписания, anon-ключ - тот же проект, role:anon) ======
 const SUPABASE_URL = "https://kjzxrpwqyyjcykwbqskn.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtqenhycHdxeXlqY3lrd2Jxc2tuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3MDg1NjUsImV4cCI6MjA5MDI4NDU2NX0.oQxkb6DGFBkmHH3w0SBkrDvGWw6nUOgN8sZt3M0FOgA";
 // Множество разблокированных video_id. Пустое по умолчанию => всё gated закрыто (fail-closed).
