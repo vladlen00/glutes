@@ -186,6 +186,12 @@ async function irenaCheckAccess() {
 }
 // ====== End access control ======
 
+// ====== Supabase (только ЧТЕНИЕ расписания, anon-ключ — тот же проект, role:anon) ======
+const SUPABASE_URL = "https://kjzxrpwqyyjcykwbqskn.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtqenhycHdxeXlqY3lrd2Jxc2tuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3MDg1NjUsImV4cCI6MjA5MDI4NDU2NX0.oQxkb6DGFBkmHH3w0SBkrDvGWw6nUOgN8sZt3M0FOgA";
+// Множество разблокированных video_id. Пустое по умолчанию => всё gated закрыто (fail-closed).
+let unlockedSet = new Set();
+
 // Play - только инлайновый SVG (как в фиксе workout), цвет наследует currentColor (оранжевый)
 const PLAY_SVG = '<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
 // Замок - простой контурный SVG, цвет наследует currentColor
@@ -194,8 +200,8 @@ const LOCK_SVG = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" st
 // Kinescope: храним ID, embed строим как в workout -> https://kinescope.io/embed/{ID}
 const WORKOUTS = [
   { num: '01', title: 'Зарядка',      duration: '10:00', id: '7DM9pw29wHp54hEuvZL3r1' },
-  { num: '02', title: 'Тренировка 1', duration: '8:34',  id: '9sYhAUqKknTDcExefp9wGK', locked: true },
-  { num: '03', title: 'Тренировка 2', duration: '13:21', id: '2Rcme9ue69FRfyb7qXmuJo', locked: true },
+  { num: '02', title: 'Тренировка 1', duration: '8:34',  id: '9sYhAUqKknTDcExefp9wGK', gated: true },
+  { num: '03', title: 'Тренировка 2', duration: '13:21', id: '2Rcme9ue69FRfyb7qXmuJo', gated: true },
 ];
 const TECHNIQUES = [
   { num: '01', title: 'Базовые правила',  duration: '9:27', id: 'xpQ2hHSjvAGebW39gs3Thy' },
@@ -203,7 +209,7 @@ const TECHNIQUES = [
   { num: '03', title: 'Присед техника 2', duration: '6:09', id: 'eRKfF4bszjh2wVfN8tmpXT' },
   { num: '04', title: 'Румынская тяга',   duration: '5:50', id: 'fjqaA8Z3qZdqV6z2yTw5nK' },
   { num: '05', title: 'Мостик',           duration: '5:37', id: 'rWhJM9aWwVHXBNhf9y3wd8' },
-  { num: '06', title: 'Подъём ноги лёжа на боку', duration: '5:02', id: '5JkAPkJQWuN3zTrRAwDAZF', locked: true },
+  { num: '06', title: 'Подъём ноги лёжа на боку', duration: '5:02', id: '5JkAPkJQWuN3zTrRAwDAZF', gated: true },
 ];
 
 function switchTab(tab) {
@@ -214,18 +220,24 @@ function switchTab(tab) {
   document.getElementById('panel-' + tab).classList.add('active');
 }
 
+// Замок считается на лету: элемент gated и его video_id ещё не разблокирован.
+function isLocked(item) { return !!item.gated && !unlockedSet.has(item.id); }
+
 function renderList(elId, items) {
   const el = document.getElementById(elId);
-  el.innerHTML = items.map(v => `
-    <div class="row${v.locked ? ' locked' : ''}">
+  el.innerHTML = items.map(v => {
+    const locked = isLocked(v);
+    return `
+    <div class="row${locked ? ' locked' : ''}">
       <div class="row-num">${v.num}</div>
       <div class="row-info">
         <div class="row-name">${v.title}</div>
-        ${v.locked ? '<div class="row-soon">скоро</div>' : `<div class="row-dur">${v.duration}</div>`}
+        ${locked ? '<div class="row-soon">скоро</div>' : `<div class="row-dur">${v.duration}</div>`}
       </div>
-      <div class="row-play">${v.locked ? LOCK_SVG : PLAY_SVG}</div>
-    </div>`).join('');
-  el.querySelectorAll('.row').forEach((row, i) => { row.onclick = () => { if (items[i].locked) return; openVideo(items[i]); }; });
+      <div class="row-play">${locked ? LOCK_SVG : PLAY_SVG}</div>
+    </div>`;
+  }).join('');
+  el.querySelectorAll('.row').forEach((row, i) => { row.onclick = () => { if (isLocked(items[i])) return; openVideo(items[i]); }; });
 }
 
 function openVideo(item) {
@@ -246,7 +258,24 @@ function closeVideo() {
   document.getElementById('listScreen').classList.add('active');
 }
 
-function init() {
+async function loadSchedule() {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 6000);   // abort -> catch -> fail-closed
+  try {
+    const res = await fetch(
+      SUPABASE_URL + '/rest/v1/glutes_schedule?select=video_id,unlocked_at',
+      { headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY }, signal: ctrl.signal }
+    );
+    clearTimeout(timer);
+    if (!res.ok) return;                              // fail-closed: unlockedSet остаётся пустым
+    const rows = await res.json();
+    unlockedSet = new Set((rows || []).filter(r => r.unlocked_at).map(r => r.video_id));
+  } catch { /* fail-closed: gated-элементы остаются закрытыми (сеть/таймаут/abort) */ }
+  finally { clearTimeout(timer); }
+}
+
+async function init() {
+  await loadSchedule();
   renderList('workoutList', WORKOUTS);
   renderList('techniqueList', TECHNIQUES);
   document.getElementById('loadingScreen').classList.remove('active');
