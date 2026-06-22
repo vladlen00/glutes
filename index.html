@@ -123,6 +123,13 @@ const IRENA_VERIFY_URL = "https://kjzxrpwqyyjcykwbqskn.supabase.co/functions/v1/
 const IRENA_TOKEN_KEY = "irena_access_token";
 const IRENA_TOKEN_EXPIRES_KEY = "irena_access_token_expires_at";
 const IRENA_SUBSCRIBE_URL = "https://t.me/Biochakirena_bot";
+// Фолбэк-прокси на verify-access через biohack (Vercel rewrite /sb -> supabase).
+// АБСОЛЮТНЫЙ URL: github.io своего /sb не имеет, относительный путь сюда копировать нельзя.
+const VERIFY_URL_PROXY = "https://biohack-tracker-blond.vercel.app/sb/functions/v1/verify-access";
+// Сетевой запрос повторяется при обрыве (частая причина у подписчиц - VPN/прокси рвут связь).
+const MAX_ATTEMPTS = 3;                  // исходная попытка + 2 повтора
+const RETRY_DELAYS_MS = [1000, 2000];    // паузы перед повтором 2 и 3
+function irenaSleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 function irenaGetStoredToken() {
   try {
@@ -147,42 +154,82 @@ function irenaGetInitData() {
   } catch {}
   return null;
 }
+// Делит причины на "связь недоступна" (network_error / 5xx) и "реальный отказ".
+function isConnectionReason(reason) {
+  return reason === "network_error" || (typeof reason === "string" && reason.indexOf("error_5") === 0);
+}
+
 function irenaShowBlocked(reason) {
   document.body.innerHTML = '';
   const overlay = document.createElement("div");
   overlay.style.cssText = "position:fixed;inset:0;z-index:999999;background:#100f0e;color:#f2efe8;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;font-family:'Manrope',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;text-align:center;";
-  overlay.innerHTML = `
+  if (isConnectionReason(reason)) {
+    overlay.innerHTML = `
+    <div style="font-size:60px;margin-bottom:22px;">📡</div>
+    <div style="font-size:22px;font-weight:700;margin-bottom:12px;">Не получилось подключиться</div>
+    <div style="font-size:15px;line-height:1.6;color:rgba(242,239,232,0.6);margin-bottom:30px;max-width:340px;white-space:pre-line;text-align:left;">С подпиской всё в порядке - приложение просто не смогло достучаться до сервера. Обычно дело в сети или VPN.
+
+Что попробовать:
+- включить VPN, а если уже включён - сменить на другой (не все работают одинаково)
+- переключить Wi-Fi на мобильный интернет или наоборот
+- открыть из дома
+
+Потом нажми «Обновить».</div>
+    <button type="button" onclick="location.reload()" style="display:inline-block;padding:14px 32px;background:#df6a2c;color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;">Обновить</button>
+    ${reason ? `<div style="position:absolute;bottom:12px;left:0;right:0;font-size:10px;color:rgba(242,239,232,0.14);text-align:center;">${reason}</div>` : ''}
+    `;
+  } else {
+    overlay.innerHTML = `
     <div style="font-size:60px;margin-bottom:22px;">🔒</div>
     <div style="font-size:22px;font-weight:700;margin-bottom:12px;">Доступ закрыт</div>
     <div style="font-size:15px;line-height:1.6;color:rgba(242,239,232,0.6);margin-bottom:30px;max-width:340px;">Курс «Биохакинг ягодиц» доступен участницам клуба Ирены Пол. Для доступа перейди в бот и оформи подписку.</div>
     <a href="${IRENA_SUBSCRIBE_URL}" target="_blank" rel="noopener" style="display:inline-block;padding:14px 32px;background:#df6a2c;color:#fff;border-radius:14px;font-size:15px;font-weight:600;text-decoration:none;">Оформить подписку</a>
     ${reason ? `<div style="position:absolute;bottom:12px;left:0;right:0;font-size:10px;color:rgba(242,239,232,0.14);text-align:center;">${reason}</div>` : ''}
-  `;
+    `;
+  }
   document.body.appendChild(overlay);
 }
+// Запрос к verify-access с повтором при обрыве. Возвращает {res,data} если сервер
+// ОТВЕТИЛ (любой статус, в т.ч. 403 - не повторяем), либо {networkError:true} после всех неудач.
+async function irenaRequestVerify(initData) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const url = attempt === 1 ? IRENA_VERIFY_URL : VERIFY_URL_PROXY;  // попытки 2-3 через прокси
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ initData }),
+      });
+      const data = await res.json().catch(() => ({}));
+      return { res, data };
+    } catch (e) {
+      lastError = e;
+      if (attempt < MAX_ATTEMPTS) await irenaSleep(RETRY_DELAYS_MS[attempt - 1]);
+    }
+  }
+  console.error("verify-access: all attempts failed:", lastError);
+  return { networkError: true };
+}
+
 async function irenaCheckAccess() {
   const cached = irenaGetStoredToken();
   if (cached) return true;
   const initData = irenaGetInitData();
   if (!initData) { irenaShowBlocked("no_telegram_context"); return false; }
-  try {
-    const res = await fetch(IRENA_VERIFY_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ initData }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (res.ok && data.ok && data.token) {
-      irenaStoreToken(data.token, data.expiresIn || 86400);
-      return true;
-    }
-    const reason = res.status === 403 ? "not_a_member" : res.status === 401 ? "invalid_init_data" : `error_${res.status}`;
-    irenaShowBlocked(reason);
-    return false;
-  } catch {
+  const result = await irenaRequestVerify(initData);
+  if (result.networkError) {
     irenaShowBlocked("network_error");
     return false;
   }
+  const { res, data } = result;
+  if (res.ok && data.ok && data.token) {
+    irenaStoreToken(data.token, data.expiresIn || 86400);
+    return true;
+  }
+  const reason = res.status === 403 ? "not_a_member" : res.status === 401 ? "invalid_init_data" : `error_${res.status}`;
+  irenaShowBlocked(reason);
+  return false;
 }
 // ====== End access control ======
 
