@@ -7,7 +7,8 @@
 <script src="telegram-web-app.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@800&family=Manrope:wght@400;500;600;700&family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="storage.js?v=1"></script>
 <style>
 :root{
   --bg:#100f0e; --cover:#1a1816; --accent:#df6a2c;
@@ -81,6 +82,79 @@ html,body{width:100%;min-height:100%;background:var(--bg);color:var(--text);
 .player-info{padding:18px 24px 32px;}
 .player-title{font-family:'Archivo',sans-serif;font-weight:800;font-size:1.15rem;
   text-transform:uppercase;color:var(--text);}
+
+/* ====== Вкладка «Прогресс» - токены мокапа scoped под .pg (не трогают остальную аппу) ====== */
+.pg{
+  --bg:#0B0A09;--panel:#141210;--card:#1B1815;--card2:#241F1B;--line:#2A2521;--track:#2E2823;
+  --accent:#EA5F1A;--accent-bright:#FF7A2E;--peach:#EBA968;
+  --text:#F5F0E8;--muted:#8E867B;--muted2:#6A635B;
+  font-family:'Inter',system-ui,sans-serif;color:var(--text);padding:8px 0 12px;
+}
+.pg :focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.pg .hi{font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;font-size:26px;margin:8px 0 3px;line-height:1.1;}
+.pg .sub{color:var(--muted);font-size:13px;margin-bottom:16px;}
+.pg .sec-h{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:12px;color:var(--muted);margin:2px 0 12px;}
+
+/* маленькая ссылка цели сбоку от заголовка */
+.pg .hirow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:8px 0 3px;}
+.pg .hirow .hi{margin:0;}
+.pg .goallink{flex:none;background:none;border:none;color:var(--accent);font-family:'Inter',sans-serif;font-size:12.5px;font-weight:500;cursor:pointer;padding:4px 0;white-space:nowrap;}
+.pg .goallink:hover{opacity:.8;}
+
+/* неделя */
+.pg .wk{display:flex;justify-content:space-between;gap:5px;}
+.pg .wd{flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;background:none;border:none;padding:0;cursor:pointer;font:inherit;}
+.pg .wd .wc{width:100%;aspect-ratio:1;border-radius:13px;border:1.5px solid var(--line);background:var(--card);display:grid;place-items:center;color:var(--muted2);}
+.pg .wd .wl{font-size:10px;color:var(--muted2);}
+.pg .wd .wc svg{width:19px;height:19px;}
+.pg .wd.trained .wc{background:var(--accent);border-color:var(--accent);color:#fff;}
+.pg .wd.trained .wl{color:var(--text);}
+.pg .wd.today .wc{border:2px solid var(--accent);background:rgba(234,95,26,.1);color:var(--accent);}
+.pg .wd.today .wl{color:var(--accent);font-weight:600;}
+.pg .wd.today.trained .wc{background:var(--accent);color:#fff;}
+
+/* копилки-сосуды */
+.pg .jars{display:flex;gap:16px;justify-content:center;margin-top:24px;}
+.pg .jar{flex:1;max-width:118px;text-align:center;}
+.pg .vessel{height:150px;border:2px solid var(--line);border-radius:16px 16px 20px 20px;position:relative;overflow:hidden;background:var(--card);}
+.pg .fill{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(180deg,var(--accent-bright),var(--accent));border-radius:0 0 18px 18px;transition:height .3s ease;}
+.pg .fill.peach{background:linear-gradient(180deg,#f4bd86,var(--peach));}
+.pg .vessel .vt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:2;}
+.pg .vessel .vn{font-family:'Oswald',sans-serif;font-weight:700;font-size:26px;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.4);}
+.pg .vessel .vn small{font-size:13px;opacity:.85;}
+.pg .jar .jl{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;font-size:11px;letter-spacing:.06em;margin-top:10px;}
+.pg .stepper{display:inline-flex;align-items:center;margin-top:11px;border:1px solid var(--line);border-radius:100px;overflow:hidden;}
+.pg .stepper button{width:32px;height:30px;background:var(--card2);border:none;color:var(--text);font-size:17px;cursor:pointer;}
+.pg .stepper button.plus{background:var(--accent);color:#fff;}
+.pg .stepper span{width:32px;text-align:center;font-family:'Oswald',sans-serif;font-weight:600;font-size:14px;}
+
+/* привычки */
+.pg .checklist{margin-top:6px;}
+.pg .ci{display:flex;align-items:center;gap:13px;padding:13px 2px;border-bottom:1px solid var(--line);width:100%;background:none;border-left:none;border-right:none;border-top:none;text-align:left;cursor:pointer;font:inherit;color:var(--text);}
+.pg .ci:last-child{border-bottom:none;}
+.pg .cb{width:26px;height:26px;border-radius:8px;border:1.5px solid #3a342e;flex:none;display:grid;place-items:center;font-size:15px;color:transparent;}
+.pg .ci.on .cb{background:var(--accent);border-color:var(--accent);color:#fff;}
+.pg .ci .cl b{display:block;font-weight:600;font-size:14px;}
+.pg .ci .cl span{font-size:11px;color:var(--muted);}
+
+/* экран цели */
+.pg .pg-back{display:inline-flex;align-items:center;gap:7px;background:none;border:none;color:var(--accent);font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;padding:4px 0;margin-bottom:6px;}
+.pg .pg-back::before{content:'';width:8px;height:8px;border-left:2px solid var(--accent);border-bottom:2px solid var(--accent);transform:rotate(45deg);flex-shrink:0;}
+.pg .gnote{font-size:13px;color:var(--muted);line-height:1.55;margin-bottom:20px;}
+.pg .gnote b{color:var(--text);}
+.pg .opt{display:flex;align-items:center;gap:16px;background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:15px 16px;margin-bottom:12px;position:relative;width:100%;text-align:left;cursor:pointer;font:inherit;color:var(--text);}
+.pg .opt .onum{font-family:'Oswald',sans-serif;font-weight:700;font-size:30px;line-height:1;min-width:54px;text-align:center;color:var(--muted);}
+.pg .opt .oinfo b{display:block;font-size:14.5px;font-weight:600;}
+.pg .opt .oinfo span{font-size:11.5px;color:var(--muted);}
+.pg .opt.sel{border-color:var(--accent);background:rgba(234,95,26,.07);}
+.pg .opt.sel .onum{color:var(--accent);}
+.pg .opt .chk{position:absolute;right:14px;top:14px;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--line);}
+.pg .opt.sel .chk{background:var(--accent);border-color:var(--accent);display:grid;place-items:center;}
+.pg .opt.sel .chk::after{content:"✓";color:#fff;font-size:12px;}
+.pg .warn{display:flex;gap:9px;align-items:flex-start;background:rgba(234,95,26,.09);border:1px solid rgba(234,95,26,.3);border-radius:12px;padding:11px 12px;font-size:11.5px;line-height:1.45;color:var(--muted);margin:-2px 0 14px;}
+.pg .warn b{color:var(--text);}
+.pg .saveb{margin-top:6px;background:var(--accent);color:#fff;border:none;border-radius:15px;padding:15px;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.06em;font-size:14px;width:100%;cursor:pointer;}
+@media (prefers-reduced-motion: reduce){ .pg .fill{transition:none;} }
 </style>
 </head>
 <body>
@@ -98,14 +172,69 @@ html,body{width:100%;min-height:100%;background:var(--bg);color:var(--text);
   </header>
 
   <nav class="tabs">
-    <button class="tab active" type="button" onclick="switchTab('workouts')">Тренировки</button>
-    <button class="tab" type="button" onclick="switchTab('techniques')">Техника</button>
+    <button class="tab active" type="button" data-tab="progress" onclick="switchTab('progress')">Прогресс</button>
+    <button class="tab" type="button" data-tab="workouts" onclick="switchTab('workouts')">Тренировки</button>
+    <button class="tab" type="button" data-tab="techniques" onclick="switchTab('techniques')">Техника</button>
   </nav>
 
   <div class="loading active" id="loadingScreen"><div class="loading-dot"></div></div>
 
   <div class="list-screen" id="listScreen">
-    <div class="panel active" id="panel-workouts">
+    <div class="panel active" id="panel-progress">
+      <!-- Экран 1: копилка недели -->
+      <div class="pg" id="pgMain">
+        <div class="hirow">
+          <div class="hi">Копилка недели</div>
+          <button class="goallink" type="button" onclick="pgOpenGoal()">изменить цель</button>
+        </div>
+        <div class="sub">Наполняй как удобно: разом или по чуть-чуть</div>
+
+        <div class="sec-h">Твоя неделя</div>
+        <div class="wk" id="pgWeek"></div>
+
+        <div class="jars">
+          <div class="jar">
+            <div class="vessel">
+              <div class="fill" id="pgFillBig" style="height:0%"></div>
+              <div class="vt"><div class="vn"><span id="pgBigDone">0</span><small id="pgBigGoal">/9</small></div></div>
+            </div>
+            <div class="jl">Большая</div>
+            <div class="stepper">
+              <button type="button" onclick="pgStep('big',-1)" aria-label="убрать подход, большая">-</button>
+              <span id="pgBigToday">0</span>
+              <button type="button" class="plus" onclick="pgStep('big',1)" aria-label="добавить подход, большая">+</button>
+            </div>
+          </div>
+          <div class="jar">
+            <div class="vessel">
+              <div class="fill peach" id="pgFillMed" style="height:0%"></div>
+              <div class="vt"><div class="vn"><span id="pgMedDone">0</span><small id="pgMedGoal">/5</small></div></div>
+            </div>
+            <div class="jl">Средняя</div>
+            <div class="stepper">
+              <button type="button" onclick="pgStep('med',-1)" aria-label="убрать подход, средняя">-</button>
+              <span id="pgMedToday">0</span>
+              <button type="button" class="plus" onclick="pgStep('med',1)" aria-label="добавить подход, средняя">+</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="sec-h" style="margin-top:26px">Привычки на сегодня</div>
+        <div class="checklist" id="pgHabits"></div>
+      </div>
+
+      <!-- Экран 2: моя цель -->
+      <div class="pg" id="pgGoal" style="display:none">
+        <button class="pg-back" type="button" onclick="pgCloseGoal()">Назад</button>
+        <div class="hi" style="margin-top:6px">Сколько подходов<br>в неделю</div>
+        <div class="gnote" style="margin-top:10px"><b>10</b> это точка, с которой начинается рост. Рекомендуем диапазон <b>10-16</b>. Выше берут только опытные, кто уверенно восстанавливается. Начни с меньшего, поднять всегда успеешь.</div>
+        <div id="pgOpts"></div>
+        <div class="warn" id="pgWarn" style="display:none"><span>⚠</span><span><b>20 это много.</b> Новичку с этого начинать не стоит, тело не успеет восстановиться. Выбирай, только если уже давно тренируешься.</span></div>
+        <button class="saveb" type="button" onclick="pgSaveGoal()">Сохранить цель</button>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-workouts">
       <div id="workoutList"></div>
       <div class="list-soon">Скоро новые тренировки</div>
     </div>
@@ -368,11 +497,151 @@ const TECHNIQUES = [
 ];
 
 function switchTab(tab) {
-  document.querySelectorAll('.tab').forEach((b, i) => {
-    b.classList.toggle('active', ['workouts','techniques'][i] === tab);
-  });
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-' + tab).classList.add('active');
+  if (tab === 'progress' && typeof pgCloseGoal === 'function') pgCloseGoal(); // всегда открываем экран 1
+}
+
+// ====== Вкладка «Прогресс»: трекер объёма + привычки. Данные -> storage.js ======
+const PG_DUMBBELL = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.5 9h1.8v6H3.5zM1.6 10.4h1.6v3.2H1.6zM18.7 9h1.8v6h-1.8zM20.8 10.4h1.6v3.2h-1.6zM5.3 11h13.4v2H5.3z"/></svg>';
+const PG_WEEK_LABELS = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+const PG_HABITS = [
+  { key: 'sleep',    title: 'Сон 7-9 часов', note: 'попа растёт во сне' },
+  { key: 'protein',  title: 'Белок в каждом приёме пищи' },
+  { key: 'water',    title: 'Вода' },
+  { key: 'steps',    title: 'Шаги или прогулка' },
+  { key: 'creatine', title: 'Креатин' }
+];
+const PG_OPTS = [
+  { n: 10, b: 'Старт',              s: 'с этого начинается рост' },
+  { n: 14, b: 'Рекомендуем · рост', s: 'золотая середина' },
+  { n: 16, b: 'Активный рост',      s: 'уверенный уровень' },
+  { n: 20, b: 'Для опытных',        s: 'высокий объём' }
+];
+
+let PG = null;              // текущий стейт (из storage)
+let PG_TODAY = null;        // 'YYYY-MM-DD' - локальная дата устройства
+let pgGoalSelected = null;  // временный выбор на экране цели
+
+function pgSetText(id, txt) { document.getElementById(id).textContent = txt; }
+function pgPct(done, goal) { return goal <= 0 ? 0 : Math.min(100, Math.round(done / goal * 100)); }
+function pgReadDay(key) { return PG.days[key] || GlutesStorage.emptyDay(); }
+function pgWriteDay(key) {
+  if (!PG.days[key]) PG.days[key] = GlutesStorage.emptyDay();
+  return PG.days[key];
+}
+function pgWeekSum(field) {
+  return GlutesStorage.weekDateKeys(new Date()).reduce((sum, k) => {
+    const d = PG.days[k];
+    return sum + (d ? (d[field] || 0) : 0);
+  }, 0);
+}
+function pgSave() { return GlutesStorage.saveProgress(PG, new Date()); }
+
+function pgRenderWeek() {
+  const keys = GlutesStorage.weekDateKeys(new Date());
+  const el = document.getElementById('pgWeek');
+  el.innerHTML = keys.map((k, i) => {
+    const d = PG.days[k];
+    const trained = !!(d && d.isTrainingDay);
+    const today = k === PG_TODAY;
+    const cls = 'wd' + (trained ? ' trained' : '') + (today ? ' today' : '');
+    const aria = PG_WEEK_LABELS[i] + (trained ? ', была тренировка' : ', отдых');
+    return `<button type="button" class="${cls}" data-key="${k}" aria-pressed="${trained}" aria-label="${aria}">
+      <span class="wc">${trained ? PG_DUMBBELL : ''}</span><span class="wl">${PG_WEEK_LABELS[i]}</span></button>`;
+  }).join('');
+  el.querySelectorAll('.wd').forEach(b => { b.onclick = () => pgToggleDay(b.dataset.key); });
+}
+
+function pgRenderJars() {
+  const split = GlutesStorage.splitGoal(PG.weeklyGoal);
+  const bigGoal = split[0], medGoal = split[1];
+  const bigDone = pgWeekSum('glutMaxSets'), medDone = pgWeekSum('glutMedSets');
+  const today = pgReadDay(PG_TODAY);
+  pgSetText('pgBigDone', bigDone); pgSetText('pgBigGoal', '/' + bigGoal);
+  pgSetText('pgMedDone', medDone); pgSetText('pgMedGoal', '/' + medGoal);
+  pgSetText('pgBigToday', today.glutMaxSets || 0);
+  pgSetText('pgMedToday', today.glutMedSets || 0);
+  document.getElementById('pgFillBig').style.height = pgPct(bigDone, bigGoal) + '%';
+  document.getElementById('pgFillMed').style.height = pgPct(medDone, medGoal) + '%';
+}
+
+function pgRenderHabits() {
+  const today = pgReadDay(PG_TODAY);
+  const el = document.getElementById('pgHabits');
+  el.innerHTML = PG_HABITS.map(h => {
+    const on = !!(today.habits && today.habits[h.key]);
+    return `<button type="button" class="ci${on ? ' on' : ''}" data-key="${h.key}" aria-pressed="${on}">
+      <span class="cb">✓</span>
+      <span class="cl"><b>${h.title}</b>${h.note ? `<span>${h.note}</span>` : ''}</span></button>`;
+  }).join('');
+  el.querySelectorAll('.ci').forEach(b => { b.onclick = () => pgToggleHabit(b.dataset.key); });
+}
+
+async function pgToggleDay(key) {
+  const d = pgWriteDay(key);
+  d.isTrainingDay = !d.isTrainingDay;
+  pgRenderWeek();
+  await pgSave();
+}
+
+async function pgStep(muscle, delta) {
+  const field = muscle === 'big' ? 'glutMaxSets' : 'glutMedSets';
+  const d = pgWriteDay(PG_TODAY);
+  d[field] = Math.max(0, (d[field] || 0) + delta); // ниже нуля не уходим
+  pgRenderJars();
+  await pgSave();
+}
+
+async function pgToggleHabit(key) {
+  const d = pgWriteDay(PG_TODAY);
+  d.habits[key] = !d.habits[key];
+  pgRenderHabits();
+  await pgSave();
+}
+
+function pgRenderGoal() {
+  const el = document.getElementById('pgOpts');
+  el.innerHTML = PG_OPTS.map(o => {
+    const sel = o.n === pgGoalSelected;
+    return `<button type="button" class="opt${sel ? ' sel' : ''}" data-n="${o.n}" aria-pressed="${sel}">
+      <div class="onum">${o.n}</div>
+      <div class="oinfo"><b>${o.b}</b><span>${o.s}</span></div>
+      <div class="chk"></div></button>`;
+  }).join('');
+  el.querySelectorAll('.opt').forEach(b => { b.onclick = () => pgSelectGoal(parseInt(b.dataset.n, 10)); });
+  document.getElementById('pgWarn').style.display = pgGoalSelected === 20 ? 'flex' : 'none';
+}
+
+function pgSelectGoal(n) { pgGoalSelected = n; pgRenderGoal(); }
+
+function pgOpenGoal() {
+  pgGoalSelected = PG.weeklyGoal;
+  pgRenderGoal();
+  document.getElementById('pgMain').style.display = 'none';
+  document.getElementById('pgGoal').style.display = 'block';
+  window.scrollTo(0, 0);
+}
+
+function pgCloseGoal() {
+  document.getElementById('pgGoal').style.display = 'none';
+  document.getElementById('pgMain').style.display = 'block';
+}
+
+async function pgSaveGoal() {
+  PG.weeklyGoal = pgGoalSelected || GlutesStorage.DEFAULT_GOAL;
+  pgRenderJars();          // пересчёт копилок под новую цель
+  pgCloseGoal();           // возврат на экран 1
+  await pgSave();
+}
+
+async function pgInit() {
+  PG_TODAY = GlutesStorage.dateKey(new Date());
+  PG = await GlutesStorage.loadProgress();
+  pgRenderWeek();
+  pgRenderJars();
+  pgRenderHabits();
 }
 
 // Замок считается на лету: элемент gated и его video_id ещё не разблокирован.
@@ -433,6 +702,7 @@ async function init() {
   await loadSchedule();
   renderList('workoutList', WORKOUTS);
   renderList('techniqueList', TECHNIQUES);
+  await pgInit();   // вкладка «Прогресс» - заглавная, готовим её данные до показа
   document.getElementById('loadingScreen').classList.remove('active');
   document.getElementById('listScreen').classList.add('active');
 }
