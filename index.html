@@ -62,9 +62,9 @@ html,body{width:100%;min-height:100%;background:var(--bg);color:var(--text);
 /* Тонкая контурная круглая кнопка play, иконка оранжевая через currentColor */
 .row-play{flex-shrink:0;width:34px;height:34px;border-radius:50%;border:1px solid var(--accent);
   background:none;color:var(--accent);display:flex;align-items:center;justify-content:center;padding-left:2px;}
-/* Значки мышц на вкладке Техника: слева от play, ~в высоту строки, высоту строки не меняют */
-.tech-muscle{flex-shrink:0;display:flex;align-items:center;gap:3px;}
-.tech-muscle img{width:26px;height:26px;border-radius:50%;object-fit:cover;display:block;}
+/* Значки мышц на вкладке Техника: одного размера с кнопкой play (34px), высоту строки не меняют */
+.tech-muscle{flex-shrink:0;display:flex;align-items:center;gap:2px;}
+.tech-muscle img{width:34px;height:34px;border-radius:50%;object-fit:cover;display:block;}
 .row.locked{opacity:0.55;}
 .row-soon{margin-top:5px;font-family:'Manrope',sans-serif;font-weight:600;font-size:0.7rem;
   letter-spacing:0.02em;color:var(--muted);}
@@ -567,7 +567,7 @@ function muscleIcons(v) {
   if (!v.muscles || !v.muscles.length) return '';
   const imgs = v.muscles.map(m => {
     const it = MUSCLE_ICON[m];
-    return it ? `<img src="${it.src}" alt="${it.alt}" width="26" height="26">` : '';
+    return it ? `<img src="${it.src}" alt="${it.alt}" width="34" height="34">` : '';
   }).join('');
   return `<div class="tech-muscle">${imgs}</div>`;
 }
