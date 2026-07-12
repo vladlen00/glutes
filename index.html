@@ -62,6 +62,9 @@ html,body{width:100%;min-height:100%;background:var(--bg);color:var(--text);
 /* Тонкая контурная круглая кнопка play, иконка оранжевая через currentColor */
 .row-play{flex-shrink:0;width:34px;height:34px;border-radius:50%;border:1px solid var(--accent);
   background:none;color:var(--accent);display:flex;align-items:center;justify-content:center;padding-left:2px;}
+/* Значки мышц на вкладке Техника: слева от play, ~в высоту строки, высоту строки не меняют */
+.tech-muscle{flex-shrink:0;display:flex;align-items:center;gap:3px;}
+.tech-muscle img{width:26px;height:26px;border-radius:50%;object-fit:cover;display:block;}
 .row.locked{opacity:0.55;}
 .row-soon{margin-top:5px;font-family:'Manrope',sans-serif;font-weight:600;font-size:0.7rem;
   letter-spacing:0.02em;color:var(--muted);}
@@ -553,6 +556,22 @@ const PLAY_SVG = '<svg viewBox="0 0 24 24" width="15" height="15" fill="currentC
 // Замок - простой контурный SVG, цвет наследует currentColor
 const LOCK_SVG = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
 
+// Значки мышц для вкладки Техника (круглые бейджи, лежат ассетами в проекте).
+const MUSCLE_ICON = {
+  big: { src: 'muscle-big.png?v=1', alt: 'большая ягодичная' },
+  med: { src: 'muscle-med.png?v=1', alt: 'средняя ягодичная' }
+};
+// Один или два значка мышц слева от play. Пусто, если у элемента нет поля muscles
+// (так вкладка Тренировки, где muscles нет, остаётся без изменений).
+function muscleIcons(v) {
+  if (!v.muscles || !v.muscles.length) return '';
+  const imgs = v.muscles.map(m => {
+    const it = MUSCLE_ICON[m];
+    return it ? `<img src="${it.src}" alt="${it.alt}" width="26" height="26">` : '';
+  }).join('');
+  return `<div class="tech-muscle">${imgs}</div>`;
+}
+
 // Kinescope: храним ID, embed строим как в workout -> https://kinescope.io/embed/{ID}
 const WORKOUTS = [
   { num: '01', title: 'Зарядка',      duration: '10:00', id: '7DM9pw29wHp54hEuvZL3r1' },
@@ -562,17 +581,18 @@ const WORKOUTS = [
   { num: '05', title: 'Тренировка 4', duration: '17:51', id: 'hTeV227CvxHduk8B9CrRgS' },
   { num: '06', title: 'Тренировка 3D', duration: '16:52', id: 'pYheD3x8x3zcN3NCSQhDZw', gated: true },
 ];
+// muscles: значки мышц (big/med) слева от play. '01' - вводное, без значка.
 const TECHNIQUES = [
   { num: '01', title: 'Базовые правила',  duration: '9:27', id: 'xpQ2hHSjvAGebW39gs3Thy' },
-  { num: '02', title: 'Присед техника 1', duration: '1:28', id: '6S72CeK7uFUuEBSdnjy6mB' },
-  { num: '03', title: 'Присед техника 2', duration: '6:09', id: 'eRKfF4bszjh2wVfN8tmpXT' },
-  { num: '04', title: 'Румынская тяга',   duration: '5:50', id: 'fjqaA8Z3qZdqV6z2yTw5nK' },
-  { num: '05', title: 'Мостик',           duration: '5:37', id: 'rWhJM9aWwVHXBNhf9y3wd8' },
-  { num: '06', title: 'Подъём ноги лёжа на боку', duration: '5:02', id: '5JkAPkJQWuN3zTrRAwDAZF', gated: true },
-  { num: '07', title: 'Выпад назад', duration: '3:10', id: 'q7jZJoFexFZjUVv6azK985', gated: true },
-  { num: '08', title: 'Кик-бек (попомахи)', duration: '7:12', id: 'kGS3mEbDcjwRJ3d77Gwgwd' },
-  { num: '09', title: '3D Кик-бек', duration: '6:17', id: 'oT1J3CNHMpKhaVZoap7TcJ' },
-  { num: '10', title: '3D лёжа на боку', duration: '7:10', id: 'aQJg4aXc5wLyp93sxrkQxt' },
+  { num: '02', title: 'Присед техника 1', duration: '1:28', id: '6S72CeK7uFUuEBSdnjy6mB', muscles: ['big'] },
+  { num: '03', title: 'Присед техника 2', duration: '6:09', id: 'eRKfF4bszjh2wVfN8tmpXT', muscles: ['big'] },
+  { num: '04', title: 'Румынская тяга',   duration: '5:50', id: 'fjqaA8Z3qZdqV6z2yTw5nK', muscles: ['big'] },
+  { num: '05', title: 'Мостик',           duration: '5:37', id: 'rWhJM9aWwVHXBNhf9y3wd8', muscles: ['big'] },
+  { num: '06', title: 'Подъём ноги лёжа на боку', duration: '5:02', id: '5JkAPkJQWuN3zTrRAwDAZF', gated: true, muscles: ['med'] },
+  { num: '07', title: 'Выпад назад', duration: '3:10', id: 'q7jZJoFexFZjUVv6azK985', gated: true, muscles: ['big'] },
+  { num: '08', title: 'Кик-бек (попомахи)', duration: '7:12', id: 'kGS3mEbDcjwRJ3d77Gwgwd', muscles: ['big'] },
+  { num: '09', title: '3D Кик-бек', duration: '6:17', id: 'oT1J3CNHMpKhaVZoap7TcJ', muscles: ['big'] },
+  { num: '10', title: '3D лёжа на боку', duration: '7:10', id: 'aQJg4aXc5wLyp93sxrkQxt', muscles: ['big', 'med'] },
 ];
 
 function switchTab(tab) {
@@ -823,6 +843,7 @@ function renderList(elId, items) {
         <div class="row-name">${v.title}</div>
         ${locked ? '<div class="row-soon">скоро</div>' : `<div class="row-dur">${v.duration}</div>`}
       </div>
+      ${muscleIcons(v)}
       <div class="row-play">${locked ? LOCK_SVG : PLAY_SVG}</div>
     </div>`;
   }).join('');
