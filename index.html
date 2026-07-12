@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@800&family=Manrope:wght@400;500;600;700&family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="storage.js?v=2"></script>
+<script src="storage.js?v=3"></script>
 <style>
 :root{
   --bg:#100f0e; --cover:#1a1816; --accent:#df6a2c;
@@ -155,6 +155,53 @@ html,body{width:100%;min-height:100%;background:var(--bg);color:var(--text);
 .pg .warn b{color:var(--text);}
 .pg .saveb{margin-top:6px;background:var(--accent);color:#fff;border:none;border-radius:15px;padding:15px;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.06em;font-size:14px;width:100%;cursor:pointer;}
 @media (prefers-reduced-motion: reduce){ .pg .fill{transition:none;} }
+
+/* значок «?» над копилками (что такое монетка) */
+.pg .coinq-row{display:flex;justify-content:flex-end;margin-top:24px;}
+.pg .coinq-row + .jars{margin-top:8px;}
+.pg .coinq{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--accent);background:none;color:var(--accent);font-family:'Inter',sans-serif;font-weight:700;font-size:13px;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0;}
+.pg .coinq:active{opacity:.6;}
+
+/* подсказка первого запуска (над рядом дней) */
+.pg .pg-hint{position:relative;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:12.5px;line-height:1.45;color:var(--text);margin:2px 0 12px;cursor:pointer;}
+.pg .pg-hint::after{content:'';position:absolute;left:26px;bottom:-7px;width:12px;height:12px;background:var(--card2);border-right:1px solid var(--line);border-bottom:1px solid var(--line);transform:rotate(45deg);}
+
+/* ====== Общий bottom-sheet (окно тренировки и «что такое монетка») ====== */
+.pgsheet-ov{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;opacity:0;visibility:hidden;transition:opacity .22s ease,visibility .22s ease;}
+.pgsheet-ov.open{opacity:1;visibility:visible;}
+.pgsheet{--panel:#141210;--card:#1B1815;--card2:#241F1B;--line:#2A2521;--accent:#EA5F1A;--peach:#EBA968;--text:#F5F0E8;--muted:#8E867B;
+  width:100%;max-width:480px;max-height:88vh;overflow-y:auto;box-sizing:border-box;
+  background:var(--panel);border-top:1px solid var(--line);border-radius:22px 22px 0 0;
+  padding:14px 22px calc(24px + env(safe-area-inset-bottom,0px));
+  font-family:'Inter',system-ui,sans-serif;color:var(--text);
+  transform:translateY(100%);transition:transform .26s cubic-bezier(.22,.61,.36,1);}
+.pgsheet-ov.open .pgsheet{transform:translateY(0);}
+.pgsheet :focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.pgsheet .grip{width:38px;height:4px;border-radius:2px;background:#3a342e;margin:0 auto 16px;}
+.pgsheet .sh-title{font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;font-size:20px;line-height:1.12;margin-bottom:12px;}
+.pgsheet .sh-foot{font-size:12px;color:var(--muted);line-height:1.5;margin-top:8px;}
+.pgsheet .sh-close{margin-top:16px;width:100%;background:var(--card2);color:var(--text);border:1px solid var(--line);border-radius:15px;padding:14px;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.06em;font-size:14px;cursor:pointer;}
+.pgsheet .sh-primary{margin-top:16px;width:100%;background:var(--accent);color:#fff;border:none;border-radius:15px;padding:15px;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.06em;font-size:14px;cursor:pointer;}
+/* окно тренировки: легенда, строки, числа */
+.pgsheet .tr-legend{display:flex;gap:16px;align-items:center;font-size:12px;color:var(--muted);margin-bottom:14px;}
+.pgsheet .tr-legend .lg{display:inline-flex;align-items:center;gap:6px;}
+.pgsheet .dotb,.pgsheet .dotm{width:11px;height:11px;border-radius:50%;}
+.pgsheet .dotb{background:var(--accent);}
+.pgsheet .dotm{background:var(--peach);}
+.pgsheet .tr{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px 14px;margin-bottom:10px;cursor:pointer;color:var(--text);font:inherit;}
+.pgsheet .tr:active{opacity:.6;}
+.pgsheet .tr-info{flex:1;min-width:0;}
+.pgsheet .tr-name{font-weight:600;font-size:14.5px;}
+.pgsheet .tr-ex{font-size:11.5px;color:var(--muted);margin-top:3px;}
+.pgsheet .tr-nums{flex:none;display:flex;gap:10px;align-items:center;font-family:'Oswald',sans-serif;font-weight:700;font-size:16px;}
+.pgsheet .tr-nums .nb{color:var(--accent);}
+.pgsheet .tr-nums .nm{color:var(--peach);}
+/* окно «что такое монетка»: блоки */
+.pgsheet .cblk{padding:12px 0;border-bottom:1px solid var(--line);}
+.pgsheet .cblk:last-of-type{border-bottom:none;}
+.pgsheet .cblk b{display:block;font-size:14px;margin-bottom:3px;}
+.pgsheet .cblk span{font-size:13px;color:var(--muted);line-height:1.5;}
+@media (prefers-reduced-motion: reduce){ .pgsheet-ov,.pgsheet{transition:none;} }
 </style>
 </head>
 <body>
@@ -190,8 +237,10 @@ html,body{width:100%;min-height:100%;background:var(--bg);color:var(--text);
         <div class="sub">Наполняй как удобно: разом или по чуть-чуть</div>
 
         <div class="sec-h">Твоя неделя</div>
+        <div class="pg-hint" id="pgHint" hidden onclick="this.hidden=true">Зажми, чтобы выбрать тренировку. А одно касание, просто отметить, что день был</div>
         <div class="wk" id="pgWeek"></div>
 
+        <div class="coinq-row"><button type="button" class="coinq" aria-label="Что такое монетка" onclick="pgOpenCoin()">?</button></div>
         <div class="jars">
           <div class="jar">
             <div class="vessel">
@@ -227,8 +276,7 @@ html,body{width:100%;min-height:100%;background:var(--bg);color:var(--text);
       <div class="pg" id="pgGoal" style="display:none">
         <button class="pg-back" type="button" onclick="pgCloseGoal()">Назад</button>
         <div class="hi" style="margin-top:6px">Сколько подходов<br>в неделю</div>
-        <div class="gnote" style="margin-top:10px"><b>10</b> это точка, с которой начинается рост. Рекомендуем диапазон <b>10-16</b>. Выше берут только опытные, кто уверенно восстанавливается. Начни с меньшего, поднять всегда успеешь.</div>
-        <div id="pgOpts"></div>
+        <div id="pgOpts" style="margin-top:14px"></div>
         <div class="warn" id="pgWarn" style="display:none"><span>⚠</span><span><b>20 это много.</b> Новичку с этого начинать не стоит, тело не успеет восстановиться. Выбирай, только если уже давно тренируешься.</span></div>
         <button class="saveb" type="button" onclick="pgSaveGoal()">Сохранить цель</button>
       </div>
@@ -247,6 +295,37 @@ html,body{width:100%;min-height:100%;background:var(--bg);color:var(--text);
       <iframe id="videoFrame" src="" allow="autoplay; fullscreen; picture-in-picture; encrypted-media; gyroscope; accelerometer; clipboard-write; screen-wake-lock;" allowfullscreen></iframe>
     </div>
     <div class="player-info"><div class="player-title" id="playerTitle"></div></div>
+  </div>
+
+  <!-- Окно: какую тренировку сделала (открывается долгим тапом по дню) -->
+  <div class="pgsheet-ov" id="trSheet" aria-hidden="true" onclick="pgSheetBackdrop(event,'trSheet')">
+    <div class="pgsheet" role="dialog" aria-modal="true" aria-labelledby="trSheetTitle">
+      <div class="grip"></div>
+      <div class="sh-title" id="trSheetTitle">Какую тренировку сделала?</div>
+      <div class="tr-legend">
+        <span class="lg"><span class="dotb"></span>большая</span>
+        <span class="lg"><span class="dotm"></span>средняя</span>
+      </div>
+      <div id="trList"></div>
+      <div class="sh-foot">Новые тренировки появятся здесь по мере выхода в канале</div>
+      <button type="button" class="sh-close" onclick="pgCloseTraining()">Закрыть</button>
+    </div>
+  </div>
+
+  <!-- Окно: что такое монетка (открывается значком «?») -->
+  <div class="pgsheet-ov" id="coinSheet" aria-hidden="true" onclick="pgSheetBackdrop(event,'coinSheet')">
+    <div class="pgsheet" role="dialog" aria-modal="true" aria-labelledby="coinSheetTitle">
+      <div class="grip"></div>
+      <div class="sh-title" id="coinSheetTitle">Что такое монетка</div>
+      <div class="cblk"><b>Монетка это один честный подход</b><span>Не упражнение, а один рабочий подход. Сделала подход, отдохнула, вот монетка.</span></div>
+      <div class="cblk"><b>Только до жжения</b><span>Доводи мышцу до жжения, когда последние повторы уже тяжело. Халтурный подход не считается.</span></div>
+      <div class="cblk"><b>Но без фанатизма</b><span>Не до отказа и не через боль. Пара трудных повторов в конце, и спокойно остановись.</span></div>
+      <div class="cblk"><b>Даже одна монетка не зря</b><span>Не набрала полную копилку, это не провал. Любой честный подход уже вклад в здоровье и красоту попы.</span></div>
+      <div class="cblk"><b>Набирай как удобно</b><span>Хоть всё за раз, хоть по подходу за день. Важна сумма за неделю.</span></div>
+      <div class="cblk"><b>Почему копилки две</b><span>Большая, движения назад, объём сзади. Средняя, отведения в сторону, полочка сбоку. Наполняй обе.</span></div>
+      <div class="cblk"><b>Что значит добрать</b><span>Не хватает в копилке, сделай ещё пару честных подходов, и шкала подровняется.</span></div>
+      <button type="button" class="sh-primary" onclick="pgCloseCoin()">Понятно</button>
+    </div>
   </div>
 </div>
 
@@ -513,16 +592,24 @@ const PG_HABITS = [
   { key: 'steps',    title: 'Приседы или прогулка' },
   { key: 'creatine', title: 'Креатин' }
 ];
-const PG_OPTS = [
-  { n: 10, b: 'Старт',              s: 'с этого начинается рост' },
-  { n: 14, b: 'Рекомендуем · рост', s: 'золотая середина' },
-  { n: 16, b: 'Активный рост',      s: 'уверенный уровень' },
-  { n: 20, b: 'Для опытных',        s: 'высокий объём' }
+// Тренировки для окна выбора: name, состав (ex), прибавка монеток big/med.
+// Значения ПРИБАВЛЯЮТСЯ к выбранному дню (не заменяют).
+const PG_TRAININGS = [
+  { name: 'Тренировка 1', ex: 'присед, румынка, мостик',                 big: 3, med: 0 },
+  { name: 'Тренировка 2', ex: 'присед, румынка, мостик, отведение',      big: 3, med: 1 },
+  { name: 'Тренировка 3', ex: 'румынка, выпады назад, мостик, отведение', big: 3, med: 1 },
+  { name: 'Тренировка 4', ex: 'выпады, кикбэк назад, отведение лёжа',    big: 2, med: 1 },
+  { name: 'Тренировка 5', ex: 'мостик, кикбэк 3D, связка на боку',        big: 3, med: 1 }
 ];
+// Уровни цели берём из storage.js (единый источник: GlutesStorage.LEVELS).
+// Предупреждение показываем только на этом уровне (высокий объём для опытных).
+const PG_WARN_LEVEL = 'expert';
 
 let PG = null;              // текущий стейт (из storage)
 let PG_TODAY = null;        // 'YYYY-MM-DD' - локальная дата устройства
-let pgGoalSelected = null;  // временный выбор на экране цели
+let pgGoalSelected = null;  // временный выбор уровня на экране цели (ключ уровня)
+let pgTrainingDay = null;   // ключ дня, для которого открыт выбор тренировки
+const PG_LONG_MS = 500;     // порог долгого нажатия по дню
 
 function pgSetText(id, txt) { document.getElementById(id).textContent = txt; }
 function pgPct(done, goal) { return goal <= 0 ? 0 : Math.min(100, Math.round(done / goal * 100)); }
@@ -551,12 +638,36 @@ function pgRenderWeek() {
     return `<button type="button" class="${cls}" data-key="${k}" aria-pressed="${trained}" aria-label="${aria}">
       <span class="wc">${trained ? PG_DUMBBELL : ''}</span><span class="wl">${PG_WEEK_LABELS[i]}</span></button>`;
   }).join('');
-  el.querySelectorAll('.wd').forEach(b => { b.onclick = () => pgToggleDay(b.dataset.key); });
+  el.querySelectorAll('.wd').forEach(b => pgBindDay(b));
+}
+
+// Короткий тап - тоглит тренировку (гантелька). Долгий тап - окно выбора тренировки.
+// Долгий тап и короткий взаимоисключающи: после долгого клик-тогл подавляется.
+function pgBindDay(btn) {
+  const key = btn.dataset.key;
+  let sx = 0, sy = 0, longFired = false, timer = null;
+  const clear = () => { if (timer) { clearTimeout(timer); timer = null; } };
+  btn.addEventListener('pointerdown', (e) => {
+    longFired = false; sx = e.clientX; sy = e.clientY;
+    pgMaybeShowHint();                       // подсказку показываем при первом касании дня
+    clear();
+    timer = setTimeout(() => { longFired = true; timer = null; pgOpenTraining(key); }, PG_LONG_MS);
+  });
+  btn.addEventListener('pointermove', (e) => {
+    if (Math.abs(e.clientX - sx) > 10 || Math.abs(e.clientY - sy) > 10) clear(); // скролл - не долгий тап
+  });
+  btn.addEventListener('pointerup', clear);
+  btn.addEventListener('pointercancel', clear);
+  btn.addEventListener('pointerleave', clear);
+  btn.onclick = () => {
+    if (longFired) { longFired = false; return; } // долгий тап уже обработан окном
+    pgToggleDay(key);
+  };
 }
 
 function pgRenderJars() {
-  const split = GlutesStorage.splitGoal(PG.weeklyGoal);
-  const bigGoal = split[0], medGoal = split[1];
+  const pair = GlutesStorage.goalPair(PG.level);
+  const bigGoal = pair[0], medGoal = pair[1];
   const bigDone = pgWeekSum('glutMaxSets'), medDone = pgWeekSum('glutMedSets');
   const today = pgReadDay(PG_TODAY);
   pgSetText('pgBigDone', bigDone); pgSetText('pgBigGoal', '/' + bigGoal);
@@ -601,23 +712,77 @@ async function pgToggleHabit(key) {
   await pgSave();
 }
 
-function pgRenderGoal() {
-  const el = document.getElementById('pgOpts');
-  el.innerHTML = PG_OPTS.map(o => {
-    const sel = o.n === pgGoalSelected;
-    return `<button type="button" class="opt${sel ? ' sel' : ''}" data-n="${o.n}" aria-pressed="${sel}">
-      <div class="onum">${o.n}</div>
-      <div class="oinfo"><b>${o.b}</b><span>${o.s}</span></div>
-      <div class="chk"></div></button>`;
-  }).join('');
-  el.querySelectorAll('.opt').forEach(b => { b.onclick = () => pgSelectGoal(parseInt(b.dataset.n, 10)); });
-  document.getElementById('pgWarn').style.display = pgGoalSelected === 20 ? 'flex' : 'none';
+/* ---- Общие bottom-sheet ---- */
+function pgOpenSheet(id) {
+  const ov = document.getElementById(id);
+  ov.classList.add('open'); ov.setAttribute('aria-hidden', 'false');
+}
+function pgCloseSheet(id) {
+  const ov = document.getElementById(id);
+  ov.classList.remove('open'); ov.setAttribute('aria-hidden', 'true');
+}
+function pgSheetBackdrop(e, id) { if (e.target === e.currentTarget) pgCloseSheet(id); } // тап по фону закрывает
+
+/* ---- Окно выбора тренировки ---- */
+function pgRenderTrainings() {
+  const el = document.getElementById('trList');
+  el.innerHTML = PG_TRAININGS.map((t, i) => `
+    <button type="button" class="tr" data-i="${i}">
+      <div class="tr-info"><div class="tr-name">${t.name}</div><div class="tr-ex">${t.ex}</div></div>
+      <div class="tr-nums"><span class="nb">+${t.big}</span><span class="nm">+${t.med}</span></div>
+    </button>`).join('');
+  el.querySelectorAll('.tr').forEach(b => { b.onclick = () => pgApplyTraining(parseInt(b.dataset.i, 10)); });
+}
+function pgOpenTraining(dayKey) {
+  pgTrainingDay = dayKey;
+  pgRenderTrainings();
+  pgOpenSheet('trSheet');
+}
+function pgCloseTraining() { pgTrainingDay = null; pgCloseSheet('trSheet'); }
+// Прибавляет монетки выбранной тренировки к ЗАЖАТОМУ дню и ставит гантельку этому дню.
+async function pgApplyTraining(i) {
+  const t = PG_TRAININGS[i];
+  const key = pgTrainingDay;
+  if (!t || !key) { pgCloseTraining(); return; }
+  const d = pgWriteDay(key);
+  d.glutMaxSets = (d.glutMaxSets || 0) + t.big;
+  d.glutMedSets = (d.glutMedSets || 0) + t.med;
+  d.isTrainingDay = true;                 // гантелька ставится сама
+  pgCloseTraining();
+  pgRenderWeek();                         // гантелька могла появиться
+  pgRenderJars();                         // недельные копилки + сегодняшний счётчик пересчитываются
+  await pgSave();
 }
 
-function pgSelectGoal(n) { pgGoalSelected = n; pgRenderGoal(); }
+/* ---- Окно «что такое монетка» ---- */
+function pgOpenCoin() { pgOpenSheet('coinSheet'); }
+function pgCloseCoin() { pgCloseSheet('coinSheet'); }
+
+/* ---- Подсказка первого запуска: один раз при первом касании дня ---- */
+async function pgMaybeShowHint() {
+  if (!PG || PG.hintSeen) return;
+  PG.hintSeen = true;
+  const h = document.getElementById('pgHint');
+  if (h) h.hidden = false;
+  await pgSave();
+}
+
+function pgRenderGoal() {
+  const el = document.getElementById('pgOpts');
+  el.innerHTML = GlutesStorage.LEVELS.map(l => {
+    const sel = l.key === pgGoalSelected;
+    return `<button type="button" class="opt${sel ? ' sel' : ''}" data-key="${l.key}" aria-pressed="${sel}">
+      <div class="oinfo"><b>${l.name}</b><span>${l.note}</span></div>
+      <div class="chk"></div></button>`;
+  }).join('');
+  el.querySelectorAll('.opt').forEach(b => { b.onclick = () => pgSelectGoal(b.dataset.key); });
+  document.getElementById('pgWarn').style.display = pgGoalSelected === PG_WARN_LEVEL ? 'flex' : 'none';
+}
+
+function pgSelectGoal(key) { pgGoalSelected = key; pgRenderGoal(); }
 
 function pgOpenGoal() {
-  pgGoalSelected = PG.weeklyGoal;
+  pgGoalSelected = PG.level;
   pgRenderGoal();
   document.getElementById('pgMain').style.display = 'none';
   document.getElementById('pgGoal').style.display = 'block';
@@ -630,7 +795,7 @@ function pgCloseGoal() {
 }
 
 async function pgSaveGoal() {
-  PG.weeklyGoal = pgGoalSelected || GlutesStorage.DEFAULT_GOAL;
+  PG.level = pgGoalSelected || GlutesStorage.DEFAULT_LEVEL;
   pgRenderJars();          // пересчёт копилок под новую цель
   pgCloseGoal();           // возврат на экран 1
   await pgSave();
