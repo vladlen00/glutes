@@ -8,20 +8,27 @@ function eq(actual, expected, name) {
   else { failed++; console.log('FAIL  ' + name + '  expected ' + e + ' got ' + a); }
 }
 
-console.log('splitGoal (жёсткая таблица, НЕ round):');
-eq(S.splitGoal(10), [6, 4], '10 -> 6/4');
-eq(S.splitGoal(14), [9, 5], '14 -> 9/5');
-eq(S.splitGoal(16), [10, 6], '16 -> 10/6');
-eq(S.splitGoal(20), [13, 7], '20 -> 13/7');
+console.log('уровни цели (прямые пары, без деления):');
+eq(S.LEVELS.length, 5, '5 уровней');
+eq(S.LEVELS.map(function (l) { return l.key; }),
+   ['maintain', 'tone', 'growth', 'active', 'expert'], 'ключи уровней по порядку');
+eq(S.goalPair('maintain'), [6, 4], 'Поддержание -> 6/4');
+eq(S.goalPair('tone'), [9, 7], 'Тонус -> 9/7');
+eq(S.goalPair('growth'), [13, 10], 'Рекомендуемый рост -> 13/10');
+eq(S.goalPair('active'), [16, 12], 'Активный рост -> 16/12');
+eq(S.goalPair('expert'), [20, 15], 'Для опытных -> 20/15');
+eq(S.goalPair('нет-такого'), [13, 10], 'неизвестный ключ -> дефолтный уровень 13/10');
 
-// Контрольная: round дал бы 7/3 для 10 - убеждаемся, что мы НЕ так считаем.
-eq(Math.round(10 * 0.65), 7, 'round(10*0.65)===7 (именно поэтому таблица)');
-eq(S.splitGoal(10)[0] !== Math.round(10 * 0.65), true, 'splitGoal(10) != round-путь');
-
-console.log('дефолт цели:');
-eq(S.DEFAULT_GOAL, 14, 'DEFAULT_GOAL===14');
-eq(S.normalizeState(null).weeklyGoal, 14, 'пустой стейт -> цель 14');
-eq(S.splitGoal(S.normalizeState(null).weeklyGoal), [9, 5], 'дефолт -> 9/5');
+console.log('дефолт и миграция:');
+eq(S.DEFAULT_LEVEL, 'growth', 'DEFAULT_LEVEL===growth');
+eq(S.normalizeState(null).level, 'growth', 'пустой стейт -> уровень growth');
+eq(S.goalPair(S.normalizeState(null).level), [13, 10], 'дефолт -> 13/10');
+// Старая подписчица: лежит weeklyGoal без level -> дефолтный уровень.
+eq(S.normalizeState({ weeklyGoal: 20 }).level, 'growth', 'старый weeklyGoal без level -> growth');
+eq(S.normalizeState({ level: 'expert' }).level, 'expert', 'валидный level сохраняется');
+eq(S.normalizeState({ level: 'мусор' }).level, 'growth', 'битый level -> growth');
+eq(S.normalizeState(null).hintSeen, false, 'hintSeen по умолчанию false');
+eq(S.normalizeState({ hintSeen: true }).hintSeen, true, 'hintSeen сохраняется');
 
 console.log('неделя Пн-Вс по локальной дате:');
 var keys = S.weekDateKeys(new Date(2026, 6, 9)); // 2026-07-09

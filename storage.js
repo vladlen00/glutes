@@ -7,7 +7,7 @@
    чтобы позже можно было заменить реализацию на Supabase edge, не трогая UI.
 
    Публичный async-интерфейс: loadProgress(), saveProgress(state, today).
-   Плюс чистые хелперы (splitGoal, weekDateKeys, dateKey) - их же тестируем.
+   Плюс чистые хелперы (goalPair, weekDateKeys, dateKey) - их же тестируем.
 
    Универсальный модуль: работает в браузере (window.GlutesStorage) и в Node
    (module.exports) - последнее нужно для юнит-теста storage.test.js.
@@ -16,7 +16,29 @@
   'use strict';
 
   var STORAGE_KEY = 'glutes_progress_v1';
-  var DEFAULT_GOAL = 14;
+
+  /* -------------------- Уровни цели (прямые пары, без деления) ------------
+     Пользователь выбирает уровень; цель каждой копилки задана парой напрямую.
+     big - большая ягодичная (движения назад), med - средняя (отведения). */
+  var LEVELS = [
+    { key: 'maintain', name: 'Поддержание',        big: 6,  med: 4,  note: 'держит набранную форму, для тяжёлой недели и цикла' },
+    { key: 'tone',     name: 'Тонус',              big: 9,  med: 7,  note: 'плотная подтянутая форма без роста объёма' },
+    { key: 'growth',   name: 'Рекомендуемый рост', big: 13, med: 10, note: 'наш выбор, заметный рост' },
+    { key: 'active',   name: 'Активный рост',      big: 16, med: 12, note: 'для тех, кто хочет быстрее' },
+    { key: 'expert',   name: 'Для опытных',        big: 20, med: 15, note: 'высокий объём для подготовленных' }
+  ];
+  var DEFAULT_LEVEL = 'growth';
+
+  function levelByKey(key) {
+    for (var i = 0; i < LEVELS.length; i++) { if (LEVELS[i].key === key) return LEVELS[i]; }
+    return null;
+  }
+
+  // Пара целей [большая, средняя] для уровня. Неизвестный ключ -> дефолтный уровень.
+  function goalPair(key) {
+    var l = levelByKey(key) || levelByKey(DEFAULT_LEVEL);
+    return [l.big, l.med];
+  }
 
   /* -------------------- Чистая логика недели (Пн-Вс, локальное время) ----- */
   function pad2(n) { return n < 10 ? '0' + n : '' + n; }
@@ -44,16 +66,6 @@
     return keys;
   }
 
-  /* -------------------- Авто-деление недельной цели на две копилки --------
-     ВНИМАНИЕ: Math.round(цель*0.65) НЕ воспроизводит нужные значения
-     (Math.round(6.5)===7 дало бы 7/3 для 10). Жёсткая таблица + floor-фолбэк. */
-  var GOAL_SPLIT = { 10: [6, 4], 14: [9, 5], 16: [10, 6], 20: [13, 7] };
-  function splitGoal(goal) {
-    if (GOAL_SPLIT[goal]) return GOAL_SPLIT[goal].slice();
-    var big = Math.floor(goal * 0.65); // floor, НЕ round
-    return [big, goal - big];
-  }
-
   /* -------------------- Дефолты и нормализация стейта --------------------- */
   function emptyDay() {
     return {
@@ -66,9 +78,11 @@
 
   function normalizeState(raw) {
     var s = (raw && typeof raw === 'object') ? raw : {};
+    // Миграция: у старых подписчиц лежит weeklyGoal без level -> дефолтный уровень.
+    var level = (typeof s.level === 'string' && levelByKey(s.level)) ? s.level : DEFAULT_LEVEL;
     return {
-      weeklyGoal: typeof s.weeklyGoal === 'number' ? s.weeklyGoal : DEFAULT_GOAL,
-      isBeginner: typeof s.isBeginner === 'boolean' ? s.isBeginner : null,
+      level: level,
+      hintSeen: s.hintSeen === true,
       days: (s.days && typeof s.days === 'object') ? s.days : {}
     };
   }
@@ -146,7 +160,8 @@
   var API = {
     loadProgress: loadProgress,
     saveProgress: saveProgress,
-    splitGoal: splitGoal,
+    goalPair: goalPair,
+    levelByKey: levelByKey,
     weekDateKeys: weekDateKeys,
     startOfWeek: startOfWeek,
     dateKey: dateKey,
@@ -154,7 +169,8 @@
     normalizeState: normalizeState,
     pruneOldWeeks: pruneOldWeeks,
     hasCloud: function () { return !!cloud(); },
-    DEFAULT_GOAL: DEFAULT_GOAL,
+    LEVELS: LEVELS,
+    DEFAULT_LEVEL: DEFAULT_LEVEL,
     STORAGE_KEY: STORAGE_KEY
   };
 
