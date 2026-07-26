@@ -86,6 +86,44 @@ html,body{width:100%;min-height:100%;background:var(--bg);color:var(--text);
 .player-title{font-family:'Archivo',sans-serif;font-weight:800;font-size:1.15rem;
   text-transform:uppercase;color:var(--text);}
 
+/* Описание тренировки: нативный details, JS для раскрытия не нужен */
+.player-desc{margin-top:18px;}
+.player-desc summary{
+  list-style:none;cursor:pointer;
+  font-family:'Manrope',sans-serif;font-size:0.85rem;font-weight:600;
+  letter-spacing:0.02em;color:var(--text);
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  background:var(--cover);
+  border:1px solid var(--hair);
+  border-radius:14px;padding:12px 16px;
+  transition:background 0.25s,border-color 0.25s;
+  -webkit-tap-highlight-color:transparent;
+}
+.player-desc summary::-webkit-details-marker{display:none;}
+.player-desc summary:active{background:rgba(223,106,44,0.12);}
+.player-desc summary::after{
+  content:'';width:8px;height:8px;
+  border-right:2px solid var(--accent);
+  border-bottom:2px solid var(--accent);
+  transform:rotate(45deg);transition:transform 0.25s;
+  flex-shrink:0;margin-top:-3px;
+}
+.player-desc[open] summary{
+  background:rgba(223,106,44,0.10);
+  border-color:rgba(223,106,44,0.40);
+}
+.player-desc[open] summary::after{transform:rotate(225deg);margin-top:3px;}
+.player-desc-body{margin-top:12px;}
+.player-desc-subhead{
+  font-family:'Manrope',sans-serif;font-weight:700;font-size:0.95rem;
+  line-height:1.4;color:var(--accent);margin-bottom:8px;
+}
+.player-desc-text{
+  font-family:'Manrope',sans-serif;font-size:0.85rem;font-weight:400;
+  line-height:1.65;color:rgba(242,239,232,0.78);
+  white-space:pre-line;
+}
+
 /* ====== Вкладка «Прогресс» - токены мокапа scoped под .pg (не трогают остальную аппу) ====== */
 .pg{
   --bg:#0B0A09;--panel:#141210;--card:#1B1815;--card2:#241F1B;--line:#2A2521;--track:#2E2823;
@@ -296,7 +334,17 @@ html,body{width:100%;min-height:100%;background:var(--bg);color:var(--text);
     <div class="player-wrap">
       <iframe id="videoFrame" src="" allow="autoplay; fullscreen; picture-in-picture; encrypted-media; gyroscope; accelerometer; clipboard-write; screen-wake-lock;" allowfullscreen></iframe>
     </div>
-    <div class="player-info"><div class="player-title" id="playerTitle"></div></div>
+    <div class="player-info">
+      <div class="player-title" id="playerTitle"></div>
+
+      <details class="player-desc" id="playerDesc">
+        <summary>Описание тренировки</summary>
+        <div class="player-desc-body">
+          <div class="player-desc-subhead" id="playerDescSubhead"></div>
+          <div class="player-desc-text" id="playerDescText"></div>
+        </div>
+      </details>
+    </div>
   </div>
 
   <!-- Окно: какую тренировку сделала (открывается долгим тапом по дню) -->
@@ -573,7 +621,19 @@ function muscleIcons(v) {
 
 // Kinescope: храним ID, embed строим как в workout -> https://kinescope.io/embed/{ID}
 const WORKOUTS = [
-  { num: '01', title: 'Зарядка',      duration: '10:00', id: '7DM9pw29wHp54hEuvZL3r1' },
+  { num: '01', title: 'Зарядка',      duration: '10:00', id: '7DM9pw29wHp54hEuvZL3r1',
+    description: `Десять минут утром, которые меняют весь день
+
+⏱️ 10 минут
+
+Зачем она:
+🔸 Разгоняет застоявшуюся за ночь кровь и лимфу, уходит утренняя отёчность
+🔸 Запускает обмен веществ с самого утра
+🔸 Снимает зажимы в шее и плечах, а с ними часто уходят и головные боли
+🔸 Будит тело до того, как проснётся голова
+🔸 Спина и суставы перестают ныть от долгого сидения
+🔸 Даёт бодрость, за которой мы обычно идём к кофе
+🔸 Это те самые десять минут, которые вы отдали себе первой` },
   { num: '02', title: 'Тренировка 1', duration: '8:34',  id: '9sYhAUqKknTDcExefp9wGK', gated: true },
   { num: '03', title: 'Тренировка 2', duration: '13:21', id: '2Rcme9ue69FRfyb7qXmuJo', gated: true },
   { num: '04', title: 'Тренировка 3', duration: '15:39', id: '3Fd5gfcQMZ4CxnYLS2iiND', gated: true },
@@ -868,6 +928,21 @@ function renderList(elId, items) {
 function openVideo(item) {
   document.getElementById('videoFrame').src = 'https://kinescope.io/embed/' + item.id;
   document.getElementById('playerTitle').textContent = item.title;
+
+  // Описание: первая строка - подзаголовок, остальное - текст.
+  // Всегда стартует свёрнутым. Нет описания -> блок скрыт, пустой рамки не остаётся.
+  // textContent, а не innerHTML: теги в описании не исполняются.
+  const desc = document.getElementById('playerDesc');
+  if (item.description) {
+    const lines = item.description.split('\n');
+    document.getElementById('playerDescSubhead').textContent = lines[0];
+    document.getElementById('playerDescText').textContent = lines.slice(1).join('\n').replace(/^\n+/, '');
+    desc.open = false;
+    desc.style.display = '';
+  } else {
+    desc.style.display = 'none';
+  }
+
   document.getElementById('listScreen').classList.remove('active');
   document.getElementById('playerScreen').classList.add('active');
   window.scrollTo(0, 0);
