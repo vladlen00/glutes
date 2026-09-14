@@ -446,7 +446,10 @@ function irenaGetInitData() {
 }
 // Делит причины на "связь недоступна" (network_error / 5xx) и "реальный отказ".
 function isConnectionReason(reason) {
-  return reason === "network_error" || (typeof reason === "string" && reason.indexOf("error_5") === 0);
+  // init_failed: страница не достроилась (например, не выполнился storage.js) - для человека это
+  // та же «связь», экран «Не получилось подключиться / Обновить», а не «Доступ закрыт».
+  return reason === "network_error" || reason === "init_failed" ||
+    (typeof reason === "string" && reason.indexOf("error_5") === 0);
 }
 
 function irenaShowBlocked(reason) {
@@ -1102,7 +1105,13 @@ irenaCheckAccess().then(ok => {
     var ab = document.getElementById('appBackBtn');
     if (ab) ab.style.display = 'inline-flex';
   }
-  init();
+  // Падение init() раньше давало немой мёртвый экран: загрузка висит, вкладки меняют классы
+  // внутри скрытого списка (разбор 14.09, irenabio-app/HANDOVER). Теперь - существующий экран
+  // «Не получилось подключиться» с кнопкой «Обновить». В обеих дверях, только в этом случае.
+  init().catch((e) => {
+    console.error("glutes init failed:", e);
+    irenaShowBlocked("init_failed");
+  });
 });
 </script>
 </body>
