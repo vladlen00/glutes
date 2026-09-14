@@ -1,9 +1,10 @@
 /* ==========================================================================
    storage.js - слой данных вкладки «Прогресс» (Биохакинг ягодиц).
 
-   Единая точка доступа к данным. Боевой путь - Telegram CloudStorage
-   (per-user, переживает смену устройства, бэкенд не нужен). Дев-фолбэк вне
-   Telegram - localStorage, затем in-memory. Весь UI и логика ходят СЮДА,
+   Единая точка доступа к данным. В телеграме с API 6.9+ - Telegram CloudStorage
+   (per-user, переживает смену устройства, бэкенд не нужен). Вне телеграма
+   (веб app.irenabio.com) и в клиентах ниже 6.9 - localStorage своего origin,
+   затем in-memory. Весь UI и логика ходят СЮДА,
    чтобы позже можно было заменить реализацию на Supabase edge, не трогая UI.
 
    Публичный async-интерфейс: loadProgress(), saveProgress(state, today).
@@ -100,11 +101,20 @@
     return state;
   }
 
-  /* -------------------- Telegram CloudStorage (обёрнут в Promise) --------- */
+  /* -------------------- Telegram CloudStorage (обёрнут в Promise) ---------
+     Выбираем ПО ВЕРСИИ, а не по наличию функций. SDK создаёт CloudStorage.getItem
+     и вне телеграма (версия 6.0), а вызов там бросает WebAppMethodUnsupported;
+     cloudGet/cloudSet это исключение глотали, и на вебе прогресс не сохранялся
+     нигде (разбор 14.09.2026, irenabio-app/CLAUDE.md, история glutes).
+     Телеграм 6.9+ получает тот же объект и тот же путь, что и раньше: в
+     CloudStorage попадает только то, что оттуда же и читалось. */
   function cloud() {
     try {
-      var cs = global.Telegram && global.Telegram.WebApp && global.Telegram.WebApp.CloudStorage;
-      if (cs && typeof cs.getItem === 'function' && typeof cs.setItem === 'function') return cs;
+      var wa = global.Telegram && global.Telegram.WebApp;
+      var cs = wa && wa.CloudStorage;
+      if (!cs || typeof cs.getItem !== 'function' || typeof cs.setItem !== 'function') return null;
+      if (typeof wa.isVersionAtLeast !== 'function' || !wa.isVersionAtLeast('6.9')) return null;
+      return cs;
     } catch (e) {}
     return null;
   }
@@ -127,7 +137,7 @@
     });
   }
 
-  /* -------------------- Дев-фолбэк вне Telegram --------------------------- */
+  /* -------------------- Веб и телеграм ниже 6.9: localStorage, затем память */
   var memoryBlob = null;
   function devGet(key) {
     try { if (global.localStorage) return global.localStorage.getItem(key); } catch (e) {}
