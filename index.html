@@ -7,7 +7,8 @@
 <script src="telegram-web-app.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@800&family=Manrope:wght@400;500;600;700&family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Шрифты не блокируют страницу: если Google Fonts в сети молчит, скрипты всё равно идут (01.11.2026). -->
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@800&family=Manrope:wght@400;500;600;700&family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <script src="storage.js?v=4"></script>
 <style>
 :root{
@@ -383,22 +384,17 @@ html,body{width:100%;min-height:100%;background:var(--bg);color:var(--text);
 // ====== Telegram Mini App access control (унаследовано из workout, тот же клуб/гейт) ======
 const IRENA_VERIFY_URL = "https://kjzxrpwqyyjcykwbqskn.supabase.co/functions/v1/verify-access";
 const IRENA_TOKEN_KEY = "irena_access_token";
+// true = загрузка закончилась (список показан или экран доступа/связи). Сторож внизу смотрит сюда.
+let bootSettled = false;
 const IRENA_TOKEN_EXPIRES_KEY = "irena_access_token_expires_at";
 const IRENA_SUBSCRIBE_URL = "https://t.me/Biochakirena_bot";
 // ЧАСТЬ A (дыра №1): серверная проверка веб-токена (подпись+exp+подписка). ТГ-путь её НЕ вызывает.
 const IRENA_APP_VERIFY_URL = "https://kjzxrpwqyyjcykwbqskn.supabase.co/functions/v1/verify-app-token";
 const APP_VERIFY_URL_PROXY = "https://biohack-tracker-blond.vercel.app/sb/functions/v1/verify-app-token";
 const IRENA_WEB_APP_URL = "https://app.irenabio.com/";
-const APP_VERIFY_MAX_ATTEMPTS = 3;                // исходная попытка + 2 повтора
-const APP_VERIFY_RETRY_MS = [1000, 2000];
-function irenaSleepA(ms) { return new Promise((r) => setTimeout(r, ms)); }
 // Фолбэк-прокси на verify-access через biohack (Vercel rewrite /sb -> supabase).
 // АБСОЛЮТНЫЙ URL: github.io своего /sb не имеет, относительный путь сюда копировать нельзя.
 const VERIFY_URL_PROXY = "https://biohack-tracker-blond.vercel.app/sb/functions/v1/verify-access";
-// Сетевой запрос повторяется при обрыве (частая причина у подписчиц - VPN/прокси рвут связь).
-const MAX_ATTEMPTS = 3;                  // исходная попытка + 2 повтора
-const RETRY_DELAYS_MS = [1000, 2000];    // паузы перед повтором 2 и 3
-function irenaSleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 function irenaGetStoredToken() {
   try {
@@ -449,12 +445,15 @@ function isConnectionReason(reason) {
   // init_failed: страница не достроилась (например, не выполнился storage.js) - для человека это
   // та же «связь», экран «Не получилось подключиться / Обновить», а не «Доступ закрыт».
   // schedule_unreachable: расписание не отдал ни прямой путь, ни запасной - тот же экран «Обновить».
+  // boot_timeout: сторож загрузки (10 с) - тоже экран «Обновить».
   return reason === "network_error" || reason === "init_failed" || reason === "schedule_unreachable" ||
+    reason === "boot_timeout" ||
     (typeof reason === "string" && reason.indexOf("error_5") === 0);
 }
 
 // title: заголовок экрана связи (по умолчанию «Не получилось подключиться»).
 function irenaShowBlocked(reason, title) {
+  bootSettled = true;
   document.body.innerHTML = '';
   const overlay = document.createElement("div");
   overlay.style.cssText = "position:fixed;inset:0;z-index:999999;background:#100f0e;color:#f2efe8;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;font-family:'Manrope',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;text-align:center;";
@@ -484,27 +483,85 @@ function irenaShowBlocked(reason, title) {
   }
   document.body.appendChild(overlay);
 }
-// Запрос к verify-access с повтором при обрыве. Возвращает {res,data} если сервер
-// ОТВЕТИЛ (любой статус, в т.ч. 403 - не повторяем), либо {networkError:true} после всех неудач.
-async function irenaRequestVerify(initData) {
-  let lastError = null;
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    try {
-      const url = attempt === 1 ? IRENA_VERIFY_URL : VERIFY_URL_PROXY;  // попытки 2-3 через прокси
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ initData }),
-      });
-      const data = await res.json().catch(() => ({}));
-      return { res, data };
-    } catch (e) {
-      lastError = e;
-      if (attempt < MAX_ATTEMPTS) await irenaSleep(RETRY_DELAYS_MS[attempt - 1]);
+// ====== Сеть: прямой путь и запасные наперегонки (01.11.2026) ======
+// Разбор 01.11: в РФ supabase.co не обрывается, а МОЛЧИТ. У verify-access таймаута не было вовсе -
+// заставка висела, пока браузер сам не сдастся, и до запасного пути очередь не доходила.
+// Теперь: прямой путь стартует сразу; если за NET_HEDGE_MS нет годного ответа (или прямой упал) -
+// параллельно стартуют запасные; побеждает первый годный ответ, остальные обрываются.
+// Через NET_CAP_MS действие сдаётся (null) -> экран «Обновить». Два действия подряд (доступ +
+// расписание) укладываются в 10 с. Если прямой путь в этой загрузке уже подвёл, следующее
+// действие стартует запасные сразу, без ожидания.
+// Повторная отправка verify-access безвредна: вердикт тот же, сигнал «платит, но не пустило»
+// гасится на сервере раз в 7 дней; лишний +1 в обезличенном счётчике только у медленного прямого.
+const IRSB_FN = "https://ir-sb-web.vercel.app/sb/functions/v1/";   // прокси, проверенный из РФ
+const NET_HEDGE_MS = 2000;
+const NET_CAP_MS = 5000;
+const NET_RETRY_PAUSE_MS = 1000;   // все пути оборвались быстро -> ещё круг через паузу, пока есть время
+let netDirectBad = false;
+
+// legs: [{url, init}], первый - прямой. accept(res) -> значение или undefined («не годится, ждём другой путь»).
+function netRace(legs, accept, capMs) {
+  return new Promise((resolve) => {
+    const ctrls = [];
+    let done = false, inFlight = 0, backupsOn = false, hedgeTimer = null, retryTimer = null;
+    const capTimer = setTimeout(() => finish(null), capMs || NET_CAP_MS);
+    function finish(v) {
+      if (done) return;
+      done = true;
+      clearTimeout(capTimer); clearTimeout(hedgeTimer); clearTimeout(retryTimer);
+      ctrls.forEach((c) => { try { c.abort(); } catch {} });
+      if (!v || v.leg > 0) netDirectBad = true;
+      resolve(v);
     }
-  }
-  console.error("verify-access: all attempts failed:", lastError);
-  return { networkError: true };
+    function fire(i) {
+      const ctrl = new AbortController();
+      ctrls.push(ctrl);
+      inFlight++;
+      fetch(legs[i].url, Object.assign({}, legs[i].init, { signal: ctrl.signal }))
+        .then((res) => accept(res))
+        .then((v) => { if (v === undefined) failed(i); else finish({ value: v, leg: i }); })
+        .catch(() => failed(i));
+    }
+    function startBackups() {
+      if (backupsOn || done) return;
+      backupsOn = true;
+      clearTimeout(hedgeTimer);
+      for (let i = 1; i < legs.length; i++) fire(i);
+    }
+    function failed(i) {
+      if (done) return;
+      inFlight--;
+      if (i === 0) startBackups();
+      if (inFlight === 0 && backupsOn) {
+        retryTimer = setTimeout(() => { if (!done) legs.forEach((_, j) => fire(j)); }, NET_RETRY_PAUSE_MS);
+      }
+    }
+    fire(0);
+    if (netDirectBad) startBackups(); else hedgeTimer = setTimeout(startBackups, NET_HEDGE_MS);
+  });
+}
+// Вердикт - только ответ нашей функции: статус 200/400/401/403 и JSON-объект в теле.
+// 5xx, 404/402/429 и HTML-страницы прокси (Vercel, Cloudflare) - не вердикт, ждём другой путь:
+// иначе чужая ошибка запасного пути обогнала бы честный ответ и показала «Доступ закрыт».
+const VERDICT_STATUSES = [200, 400, 401, 403];
+async function acceptVerdict(res) {
+  if (VERDICT_STATUSES.indexOf(res.status) < 0) return undefined;
+  const data = await res.json().catch(() => null);
+  if (!data || typeof data !== "object" || Array.isArray(data)) return undefined;
+  return { res, data };
+}
+
+// Запрос к verify-access: {res,data} если ответила наша функция (вердикт, см. acceptVerdict; 403 - тоже вердикт),
+// либо {networkError:true}, если за NET_CAP_MS не ответил ни один путь.
+async function irenaRequestVerify(initData) {
+  const init = { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ initData }) };
+  const r = await netRace([
+    { url: IRENA_VERIFY_URL, init },
+    { url: IRSB_FN + "verify-access", init },
+    { url: VERIFY_URL_PROXY, init },
+  ], acceptVerdict);
+  if (!r) { console.error("verify-access: no path answered"); return { networkError: true }; }
+  return r.value;
 }
 
 // ЧАСТЬ A: оверлей на время серверной проверки (только веб-ветка; в ТГ не показывается).
@@ -523,6 +580,7 @@ function irenaShowChecking(show) {
 
 // ЧАСТЬ A: fail-closed при обрыве - НЕ пускаем, но и не приговариваем: экран с "Обновить".
 function irenaShowWebFail(reason) {
+  bootSettled = true;
   document.body.innerHTML = '';
   const overlay = document.createElement("div");
   overlay.style.cssText = "position:fixed;inset:0;z-index:999999;background:#100f0e;color:#f2efe8;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;font-family:'Manrope',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;text-align:center;";
@@ -539,25 +597,14 @@ function irenaShowWebFail(reason) {
 // ЧАСТЬ A (веб): запрос вердикта с ретраем. {res,data} если сервер ОТВЕТИЛ (401/403 = вердикт,
 // не повторяем), {networkError:true} после всех обрывов. 5xx = "нет вердикта" -> ретрай.
 async function irenaRequestVerifyToken(token) {
-  let lastError = null;
-  for (let attempt = 1; attempt <= APP_VERIFY_MAX_ATTEMPTS; attempt++) {
-    try {
-      const url = attempt === 1 ? IRENA_APP_VERIFY_URL : APP_VERIFY_URL_PROXY;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
-      });
-      if (res.status >= 500) throw new Error("server_5xx");
-      const data = await res.json().catch(() => ({}));
-      return { res, data };
-    } catch (e) {
-      lastError = e;
-      if (attempt < APP_VERIFY_MAX_ATTEMPTS) await irenaSleepA(APP_VERIFY_RETRY_MS[attempt - 1]);
-    }
-  }
-  console.error("verify-app-token: all attempts failed:", lastError);
-  return { networkError: true };
+  const init = { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token }) };
+  const r = await netRace([
+    { url: IRENA_APP_VERIFY_URL, init },
+    { url: IRSB_FN + "verify-app-token", init },
+    { url: APP_VERIFY_URL_PROXY, init },
+  ], acceptVerdict);
+  if (!r) { console.error("verify-app-token: no path answered"); return { networkError: true }; }
+  return r.value;
 }
 
 async function irenaCheckAccess() {
@@ -1080,44 +1127,46 @@ function closeVideo() {
 // edge-функция get-schedule через прокси ir-sb-web (там открыт только /sb/functions/v1/*,
 // широкого /sb/rest нет и не нужно). Ответ той же формы, что у REST.
 const SCHEDULE_FALLBACK_URL = "https://ir-sb-web.vercel.app/sb/functions/v1/get-schedule?app=glutes";
-const SCHEDULE_DIRECT_TIMEOUT_MS = 6000;
-const SCHEDULE_FALLBACK_TIMEOUT_MS = 8000;
-
-// Массив строк или null (обрыв, таймаут, не-2xx, не массив).
-async function fetchRows(url, headers, ms) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), ms);
-  try {
-    const res = await fetch(url, { headers, signal: ctrl.signal });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return Array.isArray(data) ? data : null;
-  } catch { return null; }
-  finally { clearTimeout(timer); }
+// Прямой путь и запасной идут наперегонки (netRace): прямой сразу, запасной через NET_HEDGE_MS
+// или сразу, если прямой в этой загрузке уже подвёл. Потолок NET_CAP_MS.
+async function acceptRows(res) {
+  if (!res.ok) return undefined;
+  const data = await res.json();
+  return Array.isArray(data) ? data : undefined;
 }
 
-// true = расписание получено. false = не ответил ни один путь: раньше тут молча оставалось
-// всё под замком, теперь init() показывает экран «Не получилось загрузить / Обновить».
+// true = расписание получено. false = не ответил ни один путь: экран «Не получилось загрузить / Обновить».
 async function loadSchedule() {
-  let rows = await fetchRows(
-    SUPABASE_URL + '/rest/v1/glutes_schedule?select=video_id,unlocked_at',
-    { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY },
-    SCHEDULE_DIRECT_TIMEOUT_MS
-  );
-  if (!rows) rows = await fetchRows(SCHEDULE_FALLBACK_URL, {}, SCHEDULE_FALLBACK_TIMEOUT_MS);
-  if (!rows) return false;
-  unlockedSet = new Set(rows.filter(r => r.unlocked_at).map(r => r.video_id));
+  const r = await netRace([
+    { url: SUPABASE_URL + '/rest/v1/glutes_schedule?select=video_id,unlocked_at',
+      init: { headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY } } },
+    { url: SCHEDULE_FALLBACK_URL, init: {} },
+  ], acceptRows);
+  if (!r) return false;
+  unlockedSet = new Set(r.value.filter(x => x.unlocked_at).map(x => x.video_id));
   return true;
 }
 
 async function init() {
   if (!(await loadSchedule())) { irenaShowBlocked("schedule_unreachable", "Не получилось загрузить"); return; }
+  if (bootSettled) return;   // сторож уже показал «Обновить»
   renderList('workoutList', WORKOUTS);
   renderList('techniqueList', TECHNIQUES);
   await pgInit();   // вкладка «Прогресс» - заглавная, готовим её данные до показа
+  if (bootSettled) return;
+  bootSettled = true;
   document.getElementById('loadingScreen').classList.remove('active');
   document.getElementById('listScreen').classList.add('active');
 }
+
+// Сторож загрузки: что бы ни зависло (сеть, CloudStorage Телеграма), через BOOT_DEADLINE_MS от
+// открытия страницы - экран «Не получилось загрузить / Обновить», а не вечная заставка.
+const BOOT_DEADLINE_MS = 10000;
+setTimeout(() => {
+  if (bootSettled) return;
+  console.error("glutes: boot deadline");
+  irenaShowBlocked("boot_timeout", "Не получилось загрузить");
+}, Math.max(0, BOOT_DEADLINE_MS - performance.now()));
 
 irenaCheckAccess().then(ok => {
   if (!ok) return;
