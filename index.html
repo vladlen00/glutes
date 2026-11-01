@@ -448,18 +448,20 @@ function irenaGetInitData() {
 function isConnectionReason(reason) {
   // init_failed: страница не достроилась (например, не выполнился storage.js) - для человека это
   // та же «связь», экран «Не получилось подключиться / Обновить», а не «Доступ закрыт».
-  return reason === "network_error" || reason === "init_failed" ||
+  // schedule_unreachable: расписание не отдал ни прямой путь, ни запасной - тот же экран «Обновить».
+  return reason === "network_error" || reason === "init_failed" || reason === "schedule_unreachable" ||
     (typeof reason === "string" && reason.indexOf("error_5") === 0);
 }
 
-function irenaShowBlocked(reason) {
+// title: заголовок экрана связи (по умолчанию «Не получилось подключиться»).
+function irenaShowBlocked(reason, title) {
   document.body.innerHTML = '';
   const overlay = document.createElement("div");
   overlay.style.cssText = "position:fixed;inset:0;z-index:999999;background:#100f0e;color:#f2efe8;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;font-family:'Manrope',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;text-align:center;";
   if (isConnectionReason(reason)) {
     overlay.innerHTML = `
     <div style="font-size:60px;margin-bottom:22px;">📡</div>
-    <div style="font-size:22px;font-weight:700;margin-bottom:12px;">Не получилось подключиться</div>
+    <div style="font-size:22px;font-weight:700;margin-bottom:12px;">${title || "Не получилось подключиться"}</div>
     <div style="font-size:15px;line-height:1.6;color:rgba(242,239,232,0.6);margin-bottom:30px;max-width:340px;white-space:pre-line;text-align:left;">С подпиской всё в порядке - приложение просто не смогло достучаться до сервера. Обычно дело в сети или VPN.
 
 Что попробовать:
@@ -1073,24 +1075,43 @@ function closeVideo() {
   document.getElementById('listScreen').classList.add('active');
 }
 
-async function loadSchedule() {
+// ====== Расписание: прямой путь, потом запасной ======
+// Из части сетей РФ/РБ прямой supabase.co мёртв (полосами или насовсем). Запасной путь -
+// edge-функция get-schedule через прокси ir-sb-web (там открыт только /sb/functions/v1/*,
+// широкого /sb/rest нет и не нужно). Ответ той же формы, что у REST.
+const SCHEDULE_FALLBACK_URL = "https://ir-sb-web.vercel.app/sb/functions/v1/get-schedule?app=glutes";
+const SCHEDULE_DIRECT_TIMEOUT_MS = 6000;
+const SCHEDULE_FALLBACK_TIMEOUT_MS = 8000;
+
+// Массив строк или null (обрыв, таймаут, не-2xx, не массив).
+async function fetchRows(url, headers, ms) {
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 6000);   // abort -> catch -> fail-closed
+  const timer = setTimeout(() => ctrl.abort(), ms);
   try {
-    const res = await fetch(
-      SUPABASE_URL + '/rest/v1/glutes_schedule?select=video_id,unlocked_at',
-      { headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY }, signal: ctrl.signal }
-    );
-    clearTimeout(timer);
-    if (!res.ok) return;                              // fail-closed: unlockedSet остаётся пустым
-    const rows = await res.json();
-    unlockedSet = new Set((rows || []).filter(r => r.unlocked_at).map(r => r.video_id));
-  } catch { /* fail-closed: gated-элементы остаются закрытыми (сеть/таймаут/abort) */ }
+    const res = await fetch(url, { headers, signal: ctrl.signal });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return Array.isArray(data) ? data : null;
+  } catch { return null; }
   finally { clearTimeout(timer); }
 }
 
+// true = расписание получено. false = не ответил ни один путь: раньше тут молча оставалось
+// всё под замком, теперь init() показывает экран «Не получилось загрузить / Обновить».
+async function loadSchedule() {
+  let rows = await fetchRows(
+    SUPABASE_URL + '/rest/v1/glutes_schedule?select=video_id,unlocked_at',
+    { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY },
+    SCHEDULE_DIRECT_TIMEOUT_MS
+  );
+  if (!rows) rows = await fetchRows(SCHEDULE_FALLBACK_URL, {}, SCHEDULE_FALLBACK_TIMEOUT_MS);
+  if (!rows) return false;
+  unlockedSet = new Set(rows.filter(r => r.unlocked_at).map(r => r.video_id));
+  return true;
+}
+
 async function init() {
-  await loadSchedule();
+  if (!(await loadSchedule())) { irenaShowBlocked("schedule_unreachable", "Не получилось загрузить"); return; }
   renderList('workoutList', WORKOUTS);
   renderList('techniqueList', TECHNIQUES);
   await pgInit();   // вкладка «Прогресс» - заглавная, готовим её данные до показа
